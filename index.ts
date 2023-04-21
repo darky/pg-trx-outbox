@@ -17,7 +17,7 @@ type OutboxMessage = {
   value: string | null;
   partition: number | null;
   timestamp: string;
-  headers: IHeaders;
+  headers: IHeaders | null;
 };
 
 export class PgKafkaTrxOutbox {
@@ -39,11 +39,14 @@ export class PgKafkaTrxOutbox {
       };
     }
   ) {
-    this.kafka = new Kafka(options.kafkaOptions);
+    this.kafka = new Kafka({
+      clientId: "pg_kafka_trx_outbox",
+      ...options.kafkaOptions,
+    });
     this.producer = this.kafka.producer(options.producerOptions);
     this.pg = new Client({
-      ...options.pgOptions,
       application_name: "pg_kafka_trx_outbox",
+      ...options.pgOptions,
     });
   }
 
@@ -52,7 +55,7 @@ export class PgKafkaTrxOutbox {
     await this.pg.connect();
   }
 
-  async start() {
+  start() {
     this.pollIntervalId = setInterval(
       () => this.processing || this.transferMessages(),
       this.options.outboxOptions?.pollInterval ?? 5000
@@ -124,7 +127,7 @@ export class PgKafkaTrxOutbox {
         value: r.value,
         partititon: r.partition,
         timestamp: r.timestamp,
-        headers: r.headers,
+        headers: r.headers ?? {},
       })),
     }));
   }
