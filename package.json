@@ -4,7 +4,9 @@
   "description": "Transactional outbox from Postgres to Kafka",
   "main": "./dist/index.js",
   "scripts": {
-    "test": "tsx test.ts"
+    "build": "rm -rf dist && tsc",
+    "test": "tsx test.ts",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "transactional",
@@ -14,6 +16,15 @@
     "kafka",
     "2pc",
     "transaction"
+  ],
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:darky/pg-kafka-trx-outbox.git"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts"
   ],
   "author": "Vladislav Botvin",
   "license": "MIT",
