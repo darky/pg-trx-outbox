@@ -29,7 +29,7 @@ export class PgKafkaTrxOutbox {
 
   constructor(
     private readonly options: {
-      pgOptions: ClientConfig | string;
+      pgOptions: ClientConfig;
       kafkaOptions: KafkaConfig;
       producerOptions?: ProducerConfig;
       outboxOptions?: {
@@ -41,7 +41,10 @@ export class PgKafkaTrxOutbox {
   ) {
     this.kafka = new Kafka(options.kafkaOptions);
     this.producer = this.kafka.producer(options.producerOptions);
-    this.pg = new Client(options.pgOptions);
+    this.pg = new Client({
+      ...options.pgOptions,
+      application_name: "pg_kafka_trx_outbox",
+    });
   }
 
   async connect() {
