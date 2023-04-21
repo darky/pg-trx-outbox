@@ -16,5 +16,13 @@
     "transaction"
   ],
   "author": "Vladislav Botvin",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "pg": "^8.10.0",
+    "pg-listen": "^1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4"
+  }
 }
