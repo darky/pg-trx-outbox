@@ -19,14 +19,14 @@
   "license": "MIT",
   "dependencies": {
     "kafkajs": "^2.2.4",
-    "lodash.groupby": "^4.6.0",
     "pg": "^8.10.0",
     "pg-listen": "^1.7.0"
   },
   "devDependencies": {
-    "@types/lodash.groupby": "^4.6.7",
     "@types/node": "^18.15.13",
     "@types/pg": "^8.6.6",
+    "testcontainers": "^9.5.0",
+    "tsx": "^3.12.6",
     "typescript": "^5.0.4"
   }
 }

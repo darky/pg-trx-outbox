@@ -5,7 +5,6 @@ import {
   Producer,
   ProducerConfig,
 } from "kafkajs";
-import groupBy from "lodash.groupby";
 import { Client, ClientConfig } from "pg";
 
 type OutboxMessage = {
@@ -114,8 +113,11 @@ export class PgKafkaTrxOutbox {
   }
 
   private makeBatchForKafka(messages: OutboxMessage[]) {
-    const grouped = groupBy(messages, (r) => r.topic);
-    return Object.entries(grouped).map(([topic, rows]) => ({
+    const grouped = new Map<string, OutboxMessage[]>();
+    messages.forEach((m) =>
+      grouped.set(m.topic, (grouped.get(m.topic) ?? []).concat(m))
+    );
+    return Array.from(grouped.entries()).map(([topic, rows]) => ({
       topic,
       messages: rows.map((r) => ({
         key: r.key,
