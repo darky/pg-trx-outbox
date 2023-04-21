@@ -26,6 +26,7 @@ export class PgKafkaTrxOutbox {
   private kafka: Kafka;
   private pg: Client;
   private pollIntervalId!: NodeJS.Timer;
+  private processing = false;
 
   constructor(
     private readonly options: {
@@ -54,7 +55,7 @@ export class PgKafkaTrxOutbox {
 
   async start() {
     this.pollIntervalId = setInterval(
-      () => this.transferMessages(),
+      () => this.processing || this.transferMessages(),
       this.options.outboxOptions?.pollInterval ?? 5000
     );
   }
@@ -66,6 +67,7 @@ export class PgKafkaTrxOutbox {
   }
 
   private async transferMessages() {
+    this.processing = true;
     try {
       await this.pg.query("begin");
       const messages = await this.fetchPgMessages();
@@ -82,6 +84,8 @@ export class PgKafkaTrxOutbox {
       if ((e as { code: string }).code !== "55P03") {
         throw e;
       }
+    } finally {
+      this.processing = false;
     }
   }
 
