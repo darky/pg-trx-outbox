@@ -12,6 +12,7 @@
     "transactional",
     "outbox",
     "postgres",
+    "postgresql",
     "pg",
     "kafka",
     "2pc",
