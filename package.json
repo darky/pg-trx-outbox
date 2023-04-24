@@ -1,6 +1,6 @@
 {
   "name": "pg-kafka-trx-outbox",
-  "version": "0.1.11",
+  "version": "0.2.17",
   "description": "Transactional outbox from Postgres to Kafka",
   "main": "./dist/index.js",
   "scripts": {
