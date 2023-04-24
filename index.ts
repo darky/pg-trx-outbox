@@ -1,93 +1,88 @@
-import {
-  IHeaders,
-  Kafka,
-  KafkaConfig,
-  Producer,
-  ProducerConfig,
-} from "kafkajs";
-import { Client, ClientConfig } from "pg";
+import { IHeaders, Kafka, KafkaConfig, Producer, ProducerConfig } from 'kafkajs'
+import { Client, ClientConfig } from 'pg'
 
 type OutboxMessage = {
-  id: string;
-  processed: false;
-  created_at: Date;
-  updated_at: Date;
-  topic: string;
-  key: string | null;
-  value: string | null;
-  partition: number | null;
-  timestamp: string;
-  headers: IHeaders | null;
-};
+  id: string
+  processed: false
+  created_at: Date
+  updated_at: Date
+  topic: string
+  key: string | null
+  value: string | null
+  partition: number | null
+  timestamp: string
+  headers: IHeaders | null
+}
 
 export class PgKafkaTrxOutbox {
-  private producer: Producer;
-  private kafka: Kafka;
-  private pg: Client;
-  private pollIntervalId!: NodeJS.Timer;
-  private processing = false;
+  private producer: Producer
+  private kafka: Kafka
+  private pg: Client
+  private pollIntervalId!: NodeJS.Timer
+  private processing = false
 
   constructor(
     private readonly options: {
-      pgOptions: ClientConfig;
-      kafkaOptions: KafkaConfig;
-      producerOptions?: ProducerConfig;
+      pgOptions: ClientConfig
+      kafkaOptions: KafkaConfig
+      producerOptions?: ProducerConfig
       outboxOptions?: {
-        pollInterval?: number;
-        acks?: -1 | 0 | 1;
-        timeout?: number;
-      };
+        pollInterval?: number
+        limit?: number
+        acks?: -1 | 0 | 1
+        timeout?: number
+      }
     }
   ) {
     this.kafka = new Kafka({
-      clientId: "pg_kafka_trx_outbox",
+      clientId: 'pg_kafka_trx_outbox',
       ...options.kafkaOptions,
-    });
-    this.producer = this.kafka.producer(options.producerOptions);
+    })
+    this.producer = this.kafka.producer(options.producerOptions)
     this.pg = new Client({
-      application_name: "pg_kafka_trx_outbox",
+      application_name: 'pg_kafka_trx_outbox',
       ...options.pgOptions,
-    });
+    })
   }
 
   async connect() {
-    await this.producer.connect();
-    await this.pg.connect();
+    await this.producer.connect()
+    await this.pg.connect()
   }
 
   start() {
     this.pollIntervalId = setInterval(
       () => this.processing || this.transferMessages(),
       this.options.outboxOptions?.pollInterval ?? 5000
-    );
+    )
   }
 
   async disconnect() {
-    clearInterval(this.pollIntervalId);
-    await this.producer.disconnect();
-    await this.pg.end();
+    clearInterval(this.pollIntervalId)
+    await this.producer.disconnect()
+    await this.pg.end()
   }
 
   private async transferMessages() {
-    this.processing = true;
+    this.processing = true
     try {
-      await this.pg.query("begin");
-      const messages = await this.fetchPgMessages();
-      const topicMessages = this.makeBatchForKafka(messages);
+      await this.pg.query('begin')
+      const messages = await this.fetchPgMessages()
+      const topicMessages = this.makeBatchForKafka(messages)
       await this.producer.sendBatch({
         topicMessages,
         acks: this.options.outboxOptions?.acks ?? -1,
         timeout: this.options.outboxOptions?.timeout ?? 30000,
-      });
-      await this.updateToProcessed(messages.map((r) => r.id));
-      await this.pg.query("commit");
+      })
+      await this.updateToProcessed(messages.map(r => r.id))
+      await this.pg.query('commit')
     } catch (e) {
-      await this.pg.query("rollback");
-      if ((e as { code: string }).code !== "55P03") {
-        throw e;
+      await this.pg.query('rollback')
+      if ((e as { code: string }).code !== '55P03') {
+        throw e
       }
     } finally {
-      this.processing = false;
+      this.processing = false
     }
   }
 
@@ -101,7 +96,7 @@ export class PgKafkaTrxOutbox {
           for update nowait
         `
       )
-      .then((resp) => resp.rows);
+      .then(resp => resp.rows)
   }
 
   private async updateToProcessed(ids: string[]) {
@@ -112,23 +107,21 @@ export class PgKafkaTrxOutbox {
         where id = any($1)
       `,
       [ids]
-    );
+    )
   }
 
   private makeBatchForKafka(messages: OutboxMessage[]) {
-    const grouped = new Map<string, OutboxMessage[]>();
-    messages.forEach((m) =>
-      grouped.set(m.topic, (grouped.get(m.topic) ?? []).concat(m))
-    );
+    const grouped = new Map<string, OutboxMessage[]>()
+    messages.forEach(m => grouped.set(m.topic, (grouped.get(m.topic) ?? []).concat(m)))
     return Array.from(grouped.entries()).map(([topic, rows]) => ({
       topic,
-      messages: rows.map((r) => ({
+      messages: rows.map(r => ({
         key: r.key,
         value: r.value,
         partititon: r.partition,
         timestamp: r.timestamp,
         headers: r.headers ?? {},
       })),
-    }));
+    }))
   }
 }

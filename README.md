@@ -5,7 +5,7 @@ More info: https://microservices.io/patterns/data/transactional-outbox.html
 
 ## Algo
 
-Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to Kafka. Then messages marked as `processed`. 
+Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to Kafka. Then messages marked as `processed`.
 
 ## DB structure
 
@@ -53,7 +53,7 @@ pgKafkaTrxOutbox.start();
 await pgKafkaTrxOutbox.disconnect();
 ```
 
-* [1] https://node-postgres.com/apis/client#new-client
-* [2] https://kafka.js.org/docs/configuration
-* [3] https://kafka.js.org/docs/producing#options
-* [4] https://kafka.js.org/docs/producing#producing-messages acks, timeout options
+- [1] https://node-postgres.com/apis/client#new-client
+- [2] https://kafka.js.org/docs/configuration
+- [3] https://kafka.js.org/docs/producing#options
+- [4] https://kafka.js.org/docs/producing#producing-messages acks, timeout options
