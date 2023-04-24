@@ -62,6 +62,7 @@ beforeEach(async () => {
   kafkaConsumer.run({
     eachMessage: async payload => (messages.push(payload), void 0),
   })
+  await setTimeout(1000) // subscriber ready
 })
 
 afterEach(async () => {
