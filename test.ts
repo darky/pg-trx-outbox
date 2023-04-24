@@ -61,7 +61,17 @@ beforeEach(async () => {
   kafkaConsumer.run({
     eachMessage: async payload => (messages.push(payload), void 0),
   })
+})
 
+afterEach(async () => {
+  await pgKafkaTrxOutbox.disconnect()
+  await pg.end()
+  await kafkaAdmin.disconnect()
+  await kafkaConsumer.disconnect()
+  messages = []
+})
+
+test('basic polling', async () => {
   pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
     kafkaOptions: {
       brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -78,17 +88,6 @@ beforeEach(async () => {
     },
   })
   await pgKafkaTrxOutbox.connect()
-})
-
-afterEach(async () => {
-  await pgKafkaTrxOutbox.disconnect()
-  await pg.end()
-  await kafkaAdmin.disconnect()
-  await kafkaConsumer.disconnect()
-  messages = []
-})
-
-test('basic polling', async () => {
   await pg.query(`
     INSERT INTO pg_kafka_trx_outbox
       (topic, "key", value)
@@ -112,4 +111,46 @@ test('basic polling', async () => {
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
   assert.strictEqual(messages[0]?.message.offset, '0')
   assert.strictEqual(Date.now() - Number(messages[0]?.message.timestamp) < 1000, true)
+})
+
+test('limit support', async () => {
+  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+    kafkaOptions: {
+      brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+      limit: 1,
+    },
+  })
+  await pgKafkaTrxOutbox.connect()
+  await pg.query(`
+    INSERT INTO pg_kafka_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 1}'),
+        ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 2}');
+    `)
+  pgKafkaTrxOutbox.start()
+  await setTimeout(350)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+  assert.strictEqual(processedRow[0]?.processed, true)
+  assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+
+  assert.strictEqual(processedRow[1]?.processed, false)
+  assert.strictEqual(processedRow[1]?.updated_at.toISOString(), processedRow[1]?.created_at.toISOString())
+
+  assert.strictEqual(messages.length, 1)
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true, "n": 1}')
 })

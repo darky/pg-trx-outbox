@@ -93,8 +93,10 @@ export class PgKafkaTrxOutbox {
           select * from pg_kafka_trx_outbox
           where processed = false
           order by id
+          limit $1
           for update nowait
-        `
+        `,
+        [this.options.outboxOptions?.limit ?? 50]
       )
       .then(resp => resp.rows)
   }

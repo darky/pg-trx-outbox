@@ -40,6 +40,7 @@ const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
   producerOptions: {/**/}, // [3],
   outboxOptions: {
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
+    limit: 50, // how much messages in batch, default 50
     acks: -1 // [4],
     timeout: 30000 // [4]
   }
