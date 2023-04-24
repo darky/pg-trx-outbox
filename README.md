@@ -5,7 +5,7 @@ More info: https://microservices.io/patterns/data/transactional-outbox.html
 
 ## Algo
 
-Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to Kafka. Then messages marked as `produced`. 
+Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to Kafka. Then messages marked as `processed`. 
 
 ## DB structure
 
