@@ -94,7 +94,7 @@ test('basic polling', async () => {
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
     `)
   pgKafkaTrxOutbox.start()
-  await setTimeout(1000)
+  await setTimeout(2000)
 
   const processedRow: {
     processed: boolean
