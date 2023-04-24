@@ -50,9 +50,10 @@ beforeEach(async () => {
   })
   kafkaAdmin = kafka.admin()
   await kafkaAdmin.connect()
-  try {
+  const { topics } = await kafkaAdmin.fetchTopicMetadata()
+  if (topics.find(t => t.name === 'pg.kafka.trx.outbox')) {
     await kafkaAdmin.deleteTopics({ topics: ['pg.kafka.trx.outbox'] })
-  } catch (e) {}
+  }
   await kafkaAdmin.createTopics({ topics: [{ topic: 'pg.kafka.trx.outbox' }] })
 
   kafkaConsumer = kafka.consumer({ groupId: 'test' })
