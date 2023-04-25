@@ -25,12 +25,13 @@ export class PgKafkaTrxOutbox {
     private readonly options: {
       pgOptions: ClientConfig
       kafkaOptions: KafkaConfig
-      producerOptions?: ProducerConfig
+      producerOptions?: ProducerConfig & {
+        acks?: -1 | 0 | 1
+        timeout?: number
+      }
       outboxOptions?: {
         pollInterval?: number
         limit?: number
-        acks?: -1 | 0 | 1
-        timeout?: number
       }
     }
   ) {
@@ -71,8 +72,8 @@ export class PgKafkaTrxOutbox {
       const topicMessages = this.makeBatchForKafka(messages)
       await this.producer.sendBatch({
         topicMessages,
-        acks: this.options.outboxOptions?.acks ?? -1,
-        timeout: this.options.outboxOptions?.timeout ?? 30000,
+        acks: this.options.producerOptions?.acks ?? -1,
+        timeout: this.options.producerOptions?.timeout ?? 30000,
       })
       await this.updateToProcessed(messages.map(r => r.id))
       await this.pg.query('commit')

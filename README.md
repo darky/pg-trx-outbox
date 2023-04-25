@@ -2,7 +2,6 @@
 
 ![photo_2023-04-22_03-38-43](https://user-images.githubusercontent.com/1832800/234091651-2a496563-6016-45fa-96f6-0b875899fe7e.jpg)
 
-
 Transactional outbox from Postgres to Kafka <br/>
 More info: https://microservices.io/patterns/data/transactional-outbox.html
 
@@ -38,14 +37,16 @@ CREATE INDEX pg_kafka_trx_outbox_not_processed_idx
 import { PgKafkaTrxOutbox } from 'pg-kafka-trx-outbox'
 
 const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
-  pgOptions: {/**/}, // [1]
-  kafkaOptions: {/**/}, // [2],
-  producerOptions: {/**/}, // [3],
+  pgOptions: {/* [1] */},
+  kafkaOptions: {/* [2] */},
+  producerOptions: {
+    /* [3] */
+    acks: -1 // [4],
+    timeout: 30000 // [4]
+  },,
   outboxOptions: {
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
     limit: 50, // how much messages in batch, default 50
-    acks: -1 // [4],
-    timeout: 30000 // [4]
   }
 });
 
