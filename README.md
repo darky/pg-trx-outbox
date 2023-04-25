@@ -62,3 +62,48 @@ await pgKafkaTrxOutbox.disconnect();
 - [2] https://kafka.js.org/docs/configuration
 - [3] https://kafka.js.org/docs/producing#options
 - [4] https://kafka.js.org/docs/producing#producing-messages acks, timeout options
+
+## Example (pub/sub)
+
+For reducing latency PostgreSQL LISTEN/NOTIFY can be used
+
+```sql
+CREATE OR REPLACE FUNCTION pg_kafka_trx_outbox() RETURNS trigger AS $trigger$
+  BEGIN
+    PERFORM pg_notify('pg_kafka_trx_outbox', '{}');
+    RETURN NEW;
+  END;
+$trigger$ LANGUAGE plpgsql;
+
+CREATE TRIGGER pg_kafka_trx_outbox AFTER INSERT ON pg_kafka_trx_outbox
+EXECUTE PROCEDURE pg_kafka_trx_outbox();
+```
+
+```ts
+import { PgKafkaTrxOutbox } from 'pg-kafka-trx-outbox'
+
+const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgOptions: {/* [1] */},
+  kafkaOptions: {/* [2] */},
+  producerOptions: {
+    /* [3] */
+    acks: -1 // [4],
+    timeout: 30000 // [4]
+  },,
+  outboxOptions: {
+    notify: true // Use PostgreSQL LISTEN/NOTIFY for reducing poll latency
+  }
+});
+
+await pgKafkaTrxOutbox.connect();
+pgKafkaTrxOutbox.start();
+
+// on shutdown
+
+await pgKafkaTrxOutbox.disconnect();
+```
+
+- [1] https://node-postgres.com/apis/client#new-client
+- [2] https://kafka.js.org/docs/configuration
+- [3] https://kafka.js.org/docs/producing#options
+- [4] https://kafka.js.org/docs/producing#producing-messages acks, timeout options
