@@ -1,5 +1,6 @@
 import { IHeaders, Kafka, KafkaConfig, Producer, ProducerConfig } from 'kafkajs'
 import { Client, ClientConfig } from 'pg'
+import createSubscriber, { Subscriber } from 'pg-listen'
 
 type OutboxMessage = {
   id: string
@@ -18,8 +19,10 @@ export class PgKafkaTrxOutbox {
   private producer: Producer
   private kafka: Kafka
   private pg: Client
-  private pollIntervalId!: NodeJS.Timer
+  private pollIntervalId?: NodeJS.Timer
+  private notifier?: Subscriber
   private processing = false
+  private repeat = false
 
   constructor(
     private readonly options: {
@@ -32,6 +35,7 @@ export class PgKafkaTrxOutbox {
       outboxOptions?: {
         pollInterval?: number
         limit?: number
+        notify?: boolean
       }
     }
   ) {
@@ -44,11 +48,21 @@ export class PgKafkaTrxOutbox {
       application_name: 'pg_kafka_trx_outbox',
       ...options.pgOptions,
     })
+    if (options.outboxOptions?.notify) {
+      this.notifier = createSubscriber({
+        application_name: 'pg_kafka_trx_outbox_pubsub',
+        ...options.pgOptions,
+      })
+    }
   }
 
   async connect() {
     await this.producer.connect()
     await this.pg.connect()
+    if (this.notifier) {
+      await this.notifier.connect()
+      await this.notifier.listenTo('pg_kafka_trx_outbox')
+    }
   }
 
   start() {
@@ -56,16 +70,26 @@ export class PgKafkaTrxOutbox {
       () => this.processing || this.transferMessages(),
       this.options.outboxOptions?.pollInterval ?? 5000
     )
+    if (this.notifier) {
+      this.notifier.notifications.on('pg_kafka_trx_outbox', () => {
+        this.pollIntervalId?.refresh()
+        this.processing ? (this.repeat = true) : this.transferMessages()
+      })
+    }
   }
 
   async disconnect() {
     clearInterval(this.pollIntervalId)
+    if (this.notifier) {
+      await this.notifier.close()
+    }
     await this.producer.disconnect()
     await this.pg.end()
   }
 
   private async transferMessages() {
     this.processing = true
+    this.repeat = false
     try {
       await this.pg.query('begin')
       const messages = await this.fetchPgMessages()
@@ -84,6 +108,9 @@ export class PgKafkaTrxOutbox {
       }
     } finally {
       this.processing = false
+      if (this.repeat) {
+        this.transferMessages()
+      }
     }
   }
 
