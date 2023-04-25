@@ -19,7 +19,7 @@ export class PgKafkaTrxOutbox {
   private producer: Producer
   private kafka: Kafka
   private pg: Client
-  private pollIntervalId?: NodeJS.Timer
+  private pollTimer?: NodeJS.Timer
   private notifier?: Subscriber
   private processing = false
   private repeat = false
@@ -66,20 +66,20 @@ export class PgKafkaTrxOutbox {
   }
 
   start() {
-    this.pollIntervalId = setInterval(
+    this.pollTimer = setInterval(
       () => this.processing || this.transferMessages(),
       this.options.outboxOptions?.pollInterval ?? 5000
     )
     if (this.notifier) {
       this.notifier.notifications.on('pg_kafka_trx_outbox', () => {
-        this.pollIntervalId?.refresh()
+        this.pollTimer?.refresh()
         this.processing ? (this.repeat = true) : this.transferMessages()
       })
     }
   }
 
   async disconnect() {
-    clearInterval(this.pollIntervalId)
+    clearInterval(this.pollTimer)
     if (this.notifier) {
       await this.notifier.close()
     }
