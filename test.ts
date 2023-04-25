@@ -42,6 +42,19 @@ beforeEach(async () => {
       CONSTRAINT pg_kafka_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
+  await pg.query(`
+    CREATE OR REPLACE FUNCTION pg_kafka_trx_outbox() RETURNS trigger AS $trigger$
+      BEGIN
+        PERFORM pg_notify('pg_kafka_trx_outbox', '{}');
+        RETURN NEW;
+      END;
+    $trigger$ LANGUAGE plpgsql;
+  `)
+  await pg.query(`DROP TRIGGER IF EXISTS pg_kafka_trx_outbox ON pg_kafka_trx_outbox;`)
+  await pg.query(`
+    CREATE TRIGGER pg_kafka_trx_outbox AFTER INSERT ON pg_kafka_trx_outbox
+    EXECUTE PROCEDURE pg_kafka_trx_outbox();
+  `)
   await pg.query('truncate pg_kafka_trx_outbox')
 
   const kafka = new Kafka({
@@ -73,7 +86,7 @@ afterEach(async () => {
   messages = []
 })
 
-test('basic polling', async () => {
+test('short polling', async () => {
   pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
     kafkaOptions: {
       brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -115,7 +128,7 @@ test('basic polling', async () => {
   assert.strictEqual(Date.now() - Number(messages[0]?.message.timestamp) < 1000, true)
 })
 
-test('limit support', async () => {
+test('limit', async () => {
   pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
     kafkaOptions: {
       brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -155,4 +168,41 @@ test('limit support', async () => {
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true, "n": 1}')
+})
+
+test('notify', async () => {
+  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+    kafkaOptions: {
+      brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      notify: true,
+    },
+  })
+  await pgKafkaTrxOutbox.connect()
+  pgKafkaTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_kafka_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+  `)
+  await setTimeout(100)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+  assert.strictEqual(processedRow[0]?.processed, true)
+  assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+
+  assert.strictEqual(messages.length, 1)
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
 })
