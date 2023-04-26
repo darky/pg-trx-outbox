@@ -1,6 +1,7 @@
 import { IHeaders, Kafka, KafkaConfig, Producer, ProducerConfig } from 'kafkajs'
 import { Client, ClientConfig } from 'pg'
 import createSubscriber, { Subscriber } from 'pg-listen'
+import { createMachine, interpret, invoke, state, transition } from 'robot3'
 
 type OutboxMessage = {
   id: string
@@ -21,8 +22,13 @@ export class PgKafkaTrxOutbox {
   private pg: Client
   private pollTimer?: NodeJS.Timer
   private notifier?: Subscriber
-  private processing = false
-  private repeat = false
+  private fsm = interpret(
+    createMachine('wait', {
+      wait: state(transition('poll', 'processing'), transition('notify', 'processing')),
+      processing: invoke(() => this.transferMessages(), transition('done', 'wait'), transition('error', 'wait')),
+    }),
+    () => {}
+  )
 
   constructor(
     private readonly options: {
@@ -66,15 +72,9 @@ export class PgKafkaTrxOutbox {
   }
 
   start() {
-    this.pollTimer = setInterval(
-      () => this.processing || this.transferMessages(),
-      this.options.outboxOptions?.pollInterval ?? 5000
-    )
+    this.pollTimer = setInterval(() => this.fsm.send('poll'), this.options.outboxOptions?.pollInterval ?? 5000)
     if (this.notifier) {
-      this.notifier.notifications.on('pg_kafka_trx_outbox', () => {
-        this.pollTimer?.refresh()
-        this.processing ? (this.repeat = true) : this.transferMessages()
-      })
+      this.notifier.notifications.on('pg_kafka_trx_outbox', () => this.fsm.send('notify'))
     }
   }
 
@@ -88,8 +88,6 @@ export class PgKafkaTrxOutbox {
   }
 
   private async transferMessages() {
-    this.processing = true
-    this.repeat = false
     try {
       await this.pg.query('begin')
       const messages = await this.fetchPgMessages()
@@ -105,11 +103,6 @@ export class PgKafkaTrxOutbox {
       await this.pg.query('rollback')
       if ((e as { code: string }).code !== '55P03') {
         throw e
-      }
-    } finally {
-      this.processing = false
-      if (this.repeat) {
-        this.transferMessages()
       }
     }
   }

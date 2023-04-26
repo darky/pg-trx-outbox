@@ -32,7 +32,8 @@
   "dependencies": {
     "kafkajs": "^2.2.4",
     "pg": "^8.10.0",
-    "pg-listen": "^1.7.0"
+    "pg-listen": "^1.7.0",
+    "robot3": "^0.4.0"
   },
   "devDependencies": {
     "@types/node": "^18.15.13",
