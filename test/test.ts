@@ -206,3 +206,33 @@ test('notify', async () => {
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
 })
+
+test('onError', async () => {
+  let err!: Error
+  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+    kafkaOptions: {
+      brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 500,
+      onError(e) {
+        err = e
+      },
+    },
+  })
+  await pgKafkaTrxOutbox.connect()
+  pgKafkaTrxOutbox.start()
+  await pg.query(`
+    DROP TABLE pg_kafka_trx_outbox;
+  `)
+  await setTimeout(1000)
+
+  assert.match(err.message, /relation "pg_kafka_trx_outbox" does not exist/)
+})
