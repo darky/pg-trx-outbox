@@ -2,7 +2,7 @@ import { Admin, Consumer, EachMessagePayload, Kafka } from 'kafkajs'
 import { afterEach, beforeEach, test } from 'node:test'
 import { Client } from 'pg'
 import { KafkaContainer, PostgreSqlContainer, StartedKafkaContainer, StartedPostgreSqlContainer } from 'testcontainers'
-import { PgKafkaTrxOutbox } from './index'
+import { PgKafkaTrxOutbox } from '../src/index'
 import { setTimeout } from 'timers/promises'
 import assert from 'assert'
 

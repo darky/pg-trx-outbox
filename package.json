@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "test": "tsx test.ts",
+    "test": "tsx test/test.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -18,14 +18,14 @@
     "2pc",
     "transaction"
   ],
-  "types": "dist/index.d.ts",
+  "types": "dist/src/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git@github.com:darky/pg-kafka-trx-outbox.git"
   },
   "files": [
-    "dist/index.js",
-    "dist/index.d.ts"
+    "dist/src/*.js",
+    "dist/src/*.d.ts"
   ],
   "author": "Vladislav Botvin",
   "license": "MIT",
