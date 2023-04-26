@@ -47,6 +47,7 @@ const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
   outboxOptions: {
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
     limit: 50, // how much messages in batch, default 50
+    onError(err) {/**/} // callback for catching uncaught error
   }
 });
 
