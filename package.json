@@ -1,8 +1,8 @@
 {
   "name": "pg-kafka-trx-outbox",
-  "version": "0.3.30",
+  "version": "0.4.37",
   "description": "Transactional outbox from Postgres to Kafka",
-  "main": "./dist/index.js",
+  "main": "./dist/src/index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "test": "tsx test/test.ts",
