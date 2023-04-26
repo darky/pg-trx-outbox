@@ -1,7 +1,7 @@
 import { IHeaders, Kafka, KafkaConfig, Producer, ProducerConfig } from 'kafkajs'
 import { Client, ClientConfig } from 'pg'
 import createSubscriber, { Subscriber } from 'pg-listen'
-import { createMachine, interpret, invoke, state, transition } from 'robot3'
+import { action, createMachine, interpret, invoke, state, transition } from 'robot3'
 
 type OutboxMessage = {
   id: string
@@ -24,8 +24,29 @@ export class PgKafkaTrxOutbox {
   private notifier?: Subscriber
   private fsm = interpret(
     createMachine('wait', {
-      wait: state(transition('poll', 'processing'), transition('notify', 'processing')),
-      processing: invoke(() => this.transferMessages(), transition('done', 'wait'), transition('error', 'wait')),
+      wait: state(
+        transition('poll', 'processing'),
+        transition('notify', 'processing'),
+        transition('repeat', 'processing')
+      ),
+      processing: invoke(
+        () => this.transferMessages(),
+        transition('done', 'wait'),
+        transition('error', 'wait'),
+        transition('notify', 'waitRepeatProcessing')
+      ),
+      waitRepeatProcessing: state(
+        transition(
+          'done',
+          'wait',
+          action(() => process.nextTick(() => this.fsm.send('repeat')))
+        ),
+        transition(
+          'error',
+          'wait',
+          action(() => process.nextTick(() => this.fsm.send('repeat')))
+        )
+      ),
     }),
     () => {}
   )
