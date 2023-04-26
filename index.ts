@@ -32,7 +32,11 @@ export class PgKafkaTrxOutbox {
       processing: invoke(
         () => this.transferMessages(),
         transition('done', 'wait'),
-        transition('error', 'wait'),
+        transition(
+          'error',
+          'wait',
+          action((_, { error }: { error: Error }) => this.options.outboxOptions?.onError?.(error))
+        ),
         transition('notify', 'waitRepeatProcessing')
       ),
       waitRepeatProcessing: state(
@@ -44,6 +48,7 @@ export class PgKafkaTrxOutbox {
         transition(
           'error',
           'wait',
+          action((_, { error }: { error: Error }) => this.options.outboxOptions?.onError?.(error)),
           action(() => process.nextTick(() => this.fsm.send('repeat')))
         )
       ),
@@ -63,6 +68,7 @@ export class PgKafkaTrxOutbox {
         pollInterval?: number
         limit?: number
         notify?: boolean
+        onError?: (err: Error) => unknown
       }
     }
   ) {
@@ -80,6 +86,10 @@ export class PgKafkaTrxOutbox {
         application_name: 'pg_kafka_trx_outbox_pubsub',
         ...options.pgOptions,
       })
+    }
+    if (options.outboxOptions?.onError) {
+      this.pg.on('error', err => this.options.outboxOptions?.onError?.(err))
+      this.notifier?.events.on('error', err => this.options.outboxOptions?.onError?.(err))
     }
   }
 
