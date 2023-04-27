@@ -1,11 +1,11 @@
 import createSubscriber, { Subscriber } from 'pg-listen'
 import type { Options, StartStop } from './types'
-import type { Machine, Service } from 'robot3'
+import type { FSM } from './fsm'
 
 export class Notifier implements StartStop {
   private notifier: Subscriber
 
-  constructor(options: Options, private fsm: Service<Machine<any, any, any>>) {
+  constructor(options: Options, private fsm: FSM) {
     this.notifier = createSubscriber({
       application_name: 'pg_kafka_trx_outbox_pubsub',
       ...options.pgOptions,

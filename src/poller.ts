@@ -1,10 +1,10 @@
-import type { Machine, Service } from 'robot3'
 import type { Options, StartStop } from './types'
+import type { FSM } from './fsm'
 
 export class Poller implements StartStop {
   private pollTimer?: NodeJS.Timer
 
-  constructor(private options: Options, private fsm: Service<Machine<any, any, any>>) {}
+  constructor(private options: Options, private fsm: FSM) {}
 
   async start() {
     this.pollTimer = setInterval(() => this.fsm.send('poll'), this.options.outboxOptions?.pollInterval ?? 5000)

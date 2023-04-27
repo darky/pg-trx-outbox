@@ -6,15 +6,14 @@ import { FSM } from './fsm'
 
 export class PgKafkaTrxOutbox implements StartStop {
   private transfer: Transfer
-  private fsm: FSM
   private poller: Poller
   private notifier: Notifier | void
 
-  constructor(private readonly options: Options) {
-    this.transfer = new Transfer(this.options)
-    this.fsm = new FSM(this.options, this.transfer)
-    this.poller = new Poller(this.options, this.fsm.fsm)
-    this.notifier = this.options.outboxOptions?.notify ? new Notifier(this.options, this.fsm.fsm) : void 0
+  constructor(options: Options) {
+    this.transfer = new Transfer(options)
+    const fsm = new FSM(options, this.transfer)
+    this.poller = new Poller(options, fsm)
+    this.notifier = options.outboxOptions?.notify ? new Notifier(options, fsm) : void 0
   }
 
   async start() {

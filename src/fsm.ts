@@ -5,7 +5,7 @@ import type { Options } from './types'
 export class FSM {
   constructor(private options: Options, private transfer: Transfer) {}
 
-  fsm = interpret(
+  private fsm = interpret(
     createMachine('wait', {
       wait: state(
         transition('poll', 'processing'),
@@ -38,4 +38,8 @@ export class FSM {
     }),
     () => {}
   )
+
+  send(event: string) {
+    return this.fsm.send(event)
+  }
 }
