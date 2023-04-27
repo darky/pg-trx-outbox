@@ -13,7 +13,7 @@ export class PgKafkaTrxOutbox implements StartStop {
     this.transfer = new Transfer(options)
     const fsm = new FSM(options, this.transfer)
     this.poller = new Poller(options, fsm)
-    this.notifier = options.outboxOptions?.notify ? new Notifier(options, fsm) : void 0
+    this.notifier = options.outboxOptions?.mode === 'notify' ? new Notifier(options, fsm) : void 0
   }
 
   async start() {

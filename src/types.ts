@@ -29,7 +29,7 @@ export type Options = {
   outboxOptions?: {
     pollInterval?: number
     limit?: number
-    notify?: boolean
+    mode?: 'short-polling' | 'notify'
     onError?: (err: Error) => unknown
   }
 }

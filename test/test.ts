@@ -181,7 +181,7 @@ test('notify', async () => {
       database: pgDocker.getDatabase(),
     },
     outboxOptions: {
-      notify: true,
+      mode: 'notify',
     },
   })
   await pgKafkaTrxOutbox.start()
