@@ -32,7 +32,6 @@
   "dependencies": {
     "kafkajs": "^2.2.4",
     "pg": "^8.10.0",
-    "pg-listen": "^1.7.0",
     "robot3": "^0.4.0"
   },
   "devDependencies": {
@@ -41,5 +40,8 @@
     "testcontainers": "^9.5.0",
     "tsx": "^3.12.6",
     "typescript": "^5.0.4"
+  },
+  "optionalDependencies": {
+    "pg-listen": "^1.7.0"
   }
 }

@@ -1,16 +1,18 @@
-import createSubscriber, { Subscriber } from 'pg-listen'
+import type { Subscriber } from 'pg-listen'
 import type { Options, StartStop } from './types'
 import type { FSM } from './fsm'
 
 export class Notifier implements StartStop {
-  private notifier: Subscriber
+  private notifier!: Subscriber
 
   constructor(options: Options, private fsm: FSM) {
-    this.notifier = createSubscriber({
-      application_name: 'pg_kafka_trx_outbox_pubsub',
-      ...options.pgOptions,
+    import('pg-listen').then(({ default: createSubscriber }) => {
+      this.notifier = createSubscriber({
+        application_name: 'pg_kafka_trx_outbox_pubsub',
+        ...options.pgOptions,
+      })
+      this.notifier.events.on('error', err => options.outboxOptions?.onError?.(err))
     })
-    this.notifier.events.on('error', err => options.outboxOptions?.onError?.(err))
   }
 
   async start() {
