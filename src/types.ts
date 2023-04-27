@@ -14,10 +14,9 @@ export type OutboxMessage = {
   headers: IHeaders | null
 }
 
-export interface OutboxProvider {
-  connect(): Promise<void>
-  start(): void
-  disconnect(): Promise<void>
+export interface StartStop {
+  start(): Promise<void>
+  stop(): Promise<void>
 }
 
 export type Options = {

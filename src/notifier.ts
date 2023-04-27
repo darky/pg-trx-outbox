@@ -1,8 +1,8 @@
 import createSubscriber, { Subscriber } from 'pg-listen'
-import type { Options, OutboxProvider } from './types'
+import type { Options, StartStop } from './types'
 import type { Machine, Service } from 'robot3'
 
-export class Notifier implements OutboxProvider {
+export class Notifier implements StartStop {
   private notifier: Subscriber
 
   constructor(options: Options, private fsm: Service<Machine<any, any, any>>) {
@@ -13,16 +13,13 @@ export class Notifier implements OutboxProvider {
     this.notifier.events.on('error', err => options.outboxOptions?.onError?.(err))
   }
 
-  async connect() {
+  async start() {
     await this.notifier.connect()
     await this.notifier.listenTo('pg_kafka_trx_outbox')
-  }
-
-  start() {
     this.notifier.notifications.on('pg_kafka_trx_outbox', () => this.fsm.send('notify'))
   }
 
-  async disconnect() {
+  async stop() {
     await this.notifier.close()
   }
 }

@@ -79,7 +79,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.disconnect()
+  await pgKafkaTrxOutbox.stop()
   await pg.end()
   await kafkaAdmin.disconnect()
   await kafkaConsumer.disconnect()
@@ -102,13 +102,12 @@ test('short polling', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.connect()
+  await pgKafkaTrxOutbox.start()
   await pg.query(`
     INSERT INTO pg_kafka_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
     `)
-  pgKafkaTrxOutbox.start()
   await setTimeout(1000)
 
   const processedRow: {
@@ -145,14 +144,13 @@ test('limit', async () => {
       limit: 1,
     },
   })
-  await pgKafkaTrxOutbox.connect()
   await pg.query(`
     INSERT INTO pg_kafka_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 1}'),
         ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 2}');
     `)
-  pgKafkaTrxOutbox.start()
+  await pgKafkaTrxOutbox.start()
   await setTimeout(350)
 
   const processedRow: {
@@ -186,8 +184,7 @@ test('notify', async () => {
       notify: true,
     },
   })
-  await pgKafkaTrxOutbox.connect()
-  pgKafkaTrxOutbox.start()
+  await pgKafkaTrxOutbox.start()
   await pg.query(`
     INSERT INTO pg_kafka_trx_outbox
       (topic, "key", value)
@@ -227,8 +224,7 @@ test('onError', async () => {
       },
     },
   })
-  await pgKafkaTrxOutbox.connect()
-  pgKafkaTrxOutbox.start()
+  await pgKafkaTrxOutbox.start()
   await pg.query(`
     DROP TABLE pg_kafka_trx_outbox;
   `)

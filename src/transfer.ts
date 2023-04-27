@@ -1,8 +1,8 @@
 import { Kafka, Producer } from 'kafkajs'
-import type { Options, OutboxMessage, OutboxProvider } from './types'
+import type { Options, OutboxMessage, StartStop } from './types'
 import { Client } from 'pg'
 
-export class Transfer implements OutboxProvider {
+export class Transfer implements StartStop {
   private producer: Producer
   private kafka: Kafka
   private pg: Client
@@ -20,14 +20,12 @@ export class Transfer implements OutboxProvider {
     this.pg.on('error', err => this.options.outboxOptions?.onError?.(err))
   }
 
-  async connect() {
+  async start() {
     await this.producer.connect()
     await this.pg.connect()
   }
 
-  start() {}
-
-  async disconnect() {
+  async stop() {
     await this.producer.disconnect()
     await this.pg.end()
   }
