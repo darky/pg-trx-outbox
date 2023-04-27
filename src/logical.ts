@@ -36,7 +36,7 @@ export class Logical implements StartStop {
     await this.logical.stop()
   }
 
-  async queueMessageForTransfer(message: OutboxMessage) {
+  private async queueMessageForTransfer(message: OutboxMessage) {
     await this.initQueue()
     await this.initDataLoader()
     this.dataLoader!.load(message)
