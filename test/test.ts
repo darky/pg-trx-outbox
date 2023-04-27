@@ -16,7 +16,10 @@ let messages: EachMessagePayload[] = []
 
 beforeEach(async () => {
   kafkaDocker = await new KafkaContainer().withExposedPorts(9093).withReuse().start()
-  pgDocker = await new PostgreSqlContainer().withReuse().withCommand(['-c', 'fsync=off']).start()
+  pgDocker = await new PostgreSqlContainer()
+    .withReuse()
+    .withCommand(['-c', 'fsync=off', '-c', 'wal_level=logical'])
+    .start()
 
   pg = new Client({
     host: pgDocker.getHost(),
@@ -55,6 +58,14 @@ beforeEach(async () => {
     CREATE TRIGGER pg_kafka_trx_outbox AFTER INSERT ON pg_kafka_trx_outbox
     EXECUTE PROCEDURE pg_kafka_trx_outbox();
   `)
+  await pg.query(`
+    DROP PUBLICATION IF EXISTS pg_kafka_trx_outbox
+  `)
+  try {
+    await pg.query(`
+      SELECT pg_drop_replication_slot('pg_kafka_trx_outbox')
+    `)
+  } catch (e) {}
   await pg.query('truncate pg_kafka_trx_outbox')
 
   const kafka = new Kafka({
@@ -231,4 +242,50 @@ test('onError', async () => {
   await setTimeout(1000)
 
   assert.match(err.message, /relation "pg_kafka_trx_outbox" does not exist/)
+})
+
+test('logical', async () => {
+  await pg.query(`
+    SELECT pg_create_logical_replication_slot(
+      'pg_kafka_trx_outbox',
+      'pgoutput'
+    )
+  `)
+  await pg.query(`
+    CREATE PUBLICATION pg_kafka_trx_outbox FOR TABLE pg_kafka_trx_outbox WITH (publish = 'insert');
+  `)
+  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+    kafkaOptions: {
+      brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      mode: 'logical',
+    },
+  })
+  await pg.query(`
+    INSERT INTO pg_kafka_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+  `)
+  await pgKafkaTrxOutbox.start()
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+
+  assert.strictEqual(processedRow[0]?.processed, true)
+  assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+
+  assert.strictEqual(messages.length, 1)
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
 })

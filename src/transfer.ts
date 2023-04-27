@@ -1,15 +1,11 @@
 import { Kafka, Producer } from 'kafkajs'
 import type { Options, OutboxMessage, StartStop } from './types'
 import { Client } from 'pg'
-import type DataLoader from 'dataloader'
-import type PQueue from 'p-queue'
 
 export class Transfer implements StartStop {
   private producer: Producer
   private kafka: Kafka
   private pg: Client
-  private dataLoader?: DataLoader<OutboxMessage, OutboxMessage>
-  private queue?: PQueue
 
   constructor(private readonly options: Options) {
     this.kafka = new Kafka({
@@ -34,12 +30,6 @@ export class Transfer implements StartStop {
     await this.pg.end()
   }
 
-  async queueMessageForTransfer(message: OutboxMessage) {
-    await this.initQueue()
-    await this.initDataLoader()
-    this.dataLoader!.load(message)
-  }
-
   async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
     try {
       await this.pg.query('begin')
@@ -57,34 +47,6 @@ export class Transfer implements StartStop {
       if ((e as { code: string }).code !== '55P03') {
         throw e
       }
-    }
-  }
-
-  private async initQueue() {
-    if (!this.queue) {
-      await import('p-queue').then(({ default: PQueue }) => {
-        this.queue = new PQueue({ concurrency: 1 })
-      })
-    }
-  }
-
-  private async initDataLoader() {
-    if (!this.dataLoader) {
-      await import('dataloader').then(({ default: DataLoader }) => {
-        this.dataLoader = new DataLoader(
-          async messages => {
-            this.queue!.add(() => this.transferMessages(messages))
-            return messages
-          },
-          {
-            cache: false,
-            batchScheduleFn(cb) {
-              setTimeout(cb, 50)
-            },
-            name: 'pg_kafka_trx_outbox',
-          }
-        )
-      })
     }
   }
 
