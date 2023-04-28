@@ -71,6 +71,8 @@ For reducing latency PostgreSQL `LISTEN/NOTIFY` can be used. When message insert
 
 ### Example (notify)
 
+`npm install --save pg-listen`
+
 ```sql
 CREATE OR REPLACE FUNCTION pg_kafka_trx_outbox() RETURNS trigger AS $trigger$
   BEGIN
@@ -121,6 +123,8 @@ In this mode messages replicated via PostgreSQL logical replication.
 ### Example (logical)
 
 Firstly, need to setup `wal_level=logical` in PostgreSQL config and restart it.
+
+`npm install --save pg-logical-replication dataloader p-queue@6.6.2`
 
 ```sql
 SELECT pg_create_logical_replication_slot(
