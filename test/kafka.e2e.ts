@@ -2,7 +2,7 @@ import { Admin, Consumer, EachMessagePayload, Kafka as KafkaJS } from 'kafkajs'
 import { afterEach, beforeEach, test } from 'node:test'
 import { Client } from 'pg'
 import { KafkaContainer, PostgreSqlContainer, StartedKafkaContainer, StartedPostgreSqlContainer } from 'testcontainers'
-import { PgKafkaTrxOutbox } from '../src/index'
+import { PgTrxOutbox } from '../src/index'
 import { setTimeout } from 'timers/promises'
 import assert from 'assert'
 import { Kafka } from '../src/adapters/kafka'
@@ -12,7 +12,7 @@ let pgDocker: StartedPostgreSqlContainer
 let pg: Client
 let kafkaAdmin: Admin
 let kafkaConsumer: Consumer
-let pgKafkaTrxOutbox: PgKafkaTrxOutbox
+let pgKafkaTrxOutbox: PgTrxOutbox
 let messages: EachMessagePayload[] = []
 
 beforeEach(async () => {
@@ -99,7 +99,7 @@ afterEach(async () => {
 })
 
 test('short polling', async () => {
-  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
       kafkaOptions: {
         brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -142,7 +142,7 @@ test('short polling', async () => {
 })
 
 test('limit', async () => {
-  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
       kafkaOptions: {
         brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -185,7 +185,7 @@ test('limit', async () => {
 })
 
 test('notify', async () => {
-  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
       kafkaOptions: {
         brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -224,7 +224,7 @@ test('notify', async () => {
 
 test('onError', async () => {
   let err!: Error
-  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
       kafkaOptions: {
         brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
@@ -263,7 +263,7 @@ test('logical', async () => {
   await pg.query(`
     CREATE PUBLICATION pg_kafka_trx_outbox FOR TABLE pg_kafka_trx_outbox WITH (publish = 'insert');
   `)
-  pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+  pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
       kafkaOptions: {
         brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],

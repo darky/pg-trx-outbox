@@ -6,7 +6,7 @@ import { FSM } from './fsm'
 import { Logical } from './logical'
 import { P, match } from 'ts-pattern'
 
-export class PgKafkaTrxOutbox implements StartStop {
+export class PgTrxOutbox implements StartStop {
   private transfer: Transfer
   private adapter: StartStop & Send
   private poller?: Poller
