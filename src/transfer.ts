@@ -25,8 +25,10 @@ export class Transfer implements StartStop {
     try {
       await this.pg.query('begin')
       const messages = passedMessages.length ? passedMessages : await this.fetchPgMessages()
-      await this.kafka.send(messages)
-      await this.updateToProcessed(messages.map(r => r.id))
+      if (messages.length) {
+        await this.kafka.send(messages)
+        await this.updateToProcessed(messages.map(r => r.id))
+      }
       await this.pg.query('commit')
     } catch (e) {
       await this.pg.query('rollback')
