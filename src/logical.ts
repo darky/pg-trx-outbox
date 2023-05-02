@@ -44,10 +44,10 @@ export class Logical implements StartStop {
 
   private async initQueue() {
     if (!this.queue) {
-      await import('p-queue').then(exp => {
-        const PQueueClass = (exp.default as unknown as { default: typeof PQueue }).default
-        this.queue = new PQueueClass({ concurrency: 1 })
-      })
+      const dynamicImport = new Function('specifier', 'return import(specifier)')
+      const exp = (await dynamicImport('p-queue')) as typeof import('p-queue')
+      const PQueueClass = exp.default
+      this.queue = new PQueueClass({ concurrency: 1 })
     }
   }
 

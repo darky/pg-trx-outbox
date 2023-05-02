@@ -44,7 +44,7 @@
   },
   "optionalDependencies": {
     "dataloader": "^2.2.2",
-    "p-queue": "^6.6.2",
+    "p-queue": "^7.3.4",
     "pg-listen": "^1.7.0",
     "pg-logical-replication": "^2.0.3"
   }
