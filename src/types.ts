@@ -1,4 +1,3 @@
-import type { IHeaders, KafkaConfig, ProducerConfig } from 'kafkajs'
 import type { ClientConfig } from 'pg'
 
 export type OutboxMessage = {
@@ -11,7 +10,7 @@ export type OutboxMessage = {
   value: string | null
   partition: number | null
   timestamp: string
-  headers: IHeaders | null
+  headers: Record<string, string> | null
 }
 
 export interface StartStop {
@@ -19,13 +18,13 @@ export interface StartStop {
   stop(): Promise<void>
 }
 
+export interface Send {
+  send(messages: readonly OutboxMessage[]): Promise<void>
+}
+
 export type Options = {
   pgOptions: ClientConfig
-  kafkaOptions: KafkaConfig
-  producerOptions?: ProducerConfig & {
-    acks?: -1 | 0 | 1
-    timeout?: number
-  }
+  adapter: StartStop & Send
   outboxOptions?: {
     pollInterval?: number
     limit?: number

@@ -1,11 +1,19 @@
-import { Producer, Kafka as KafkaJS } from 'kafkajs'
-import type { Options, OutboxMessage, StartStop } from './types'
+import { Producer, Kafka as KafkaJS, KafkaConfig, ProducerConfig } from 'kafkajs'
+import type { OutboxMessage, Send, StartStop } from '../types'
 
-export class Kafka implements StartStop {
+export class Kafka implements StartStop, Send {
   private producer: Producer
   private kafka: KafkaJS
 
-  constructor(private options: Options) {
+  constructor(
+    private options: {
+      kafkaOptions: KafkaConfig
+      producerOptions?: ProducerConfig & {
+        acks?: -1 | 0 | 1
+        timeout?: number
+      }
+    }
+  ) {
     this.kafka = new KafkaJS({
       clientId: 'pg_kafka_trx_outbox',
       ...options.kafkaOptions,

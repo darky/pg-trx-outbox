@@ -1,11 +1,10 @@
-import type { Kafka } from './kafka'
-import type { Options, OutboxMessage, StartStop } from './types'
+import type { Options, OutboxMessage, Send, StartStop } from './types'
 import { Client } from 'pg'
 
 export class Transfer implements StartStop {
   private pg: Client
 
-  constructor(private readonly options: Options, private readonly kafka: Kafka) {
+  constructor(private readonly options: Options, private readonly adapter: StartStop & Send) {
     this.pg = new Client({
       application_name: 'pg_kafka_trx_outbox',
       ...options.pgOptions,
@@ -26,7 +25,7 @@ export class Transfer implements StartStop {
       await this.pg.query('begin')
       const messages = passedMessages.length ? passedMessages : await this.fetchPgMessages()
       if (messages.length) {
-        await this.kafka.send(messages)
+        await this.adapter.send(messages)
         await this.updateToProcessed(messages.map(r => r.id))
       }
       await this.pg.query('commit')
