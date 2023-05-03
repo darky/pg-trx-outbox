@@ -1,14 +1,15 @@
-# pg-kafka-trx-outbox
+# pg-trx-outbox
 
 ![photo_2023-04-22_03-38-43](https://user-images.githubusercontent.com/1832800/234091651-2a496563-6016-45fa-96f6-0b875899fe7e.jpg)
 
-Transactional outbox from Postgres to Kafka for Node.js<br/>
+Transactional outbox of Postgres for Node.js<br/>
+Primarly created for Kafka, but can be used with any destination<br/>
 More info: https://microservices.io/patterns/data/transactional-outbox.html
 
 ## DB structure
 
 ```sql
-CREATE TABLE IF NOT EXISTS pg_kafka_trx_outbox (
+CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   id bigserial NOT NULL,
   processed bool NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -19,31 +20,40 @@ CREATE TABLE IF NOT EXISTS pg_kafka_trx_outbox (
   "partition" int2 NULL,
   "timestamp" int8 NULL,
   headers jsonb NULL,
-  CONSTRAINT pg_kafka_trx_outbox_pk PRIMARY KEY (id)
+  CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
 );
 
-CREATE INDEX pg_kafka_trx_outbox_not_processed_idx
-  ON pg_kafka_trx_outbox (processed, id)
+CREATE INDEX pg_trx_outbox_not_processed_idx
+  ON pg_trx_outbox (processed, id)
   WHERE (processed = false);
 ```
 
 ## Short polling mode
 
-Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to Kafka. Then messages marked as `processed`. This mode used by default.
+Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to destination. Then messages marked as `processed`. This mode used by default.
 
-### Example (short polling)
+### Kafka Example (short polling)
+
+#### Deps
+
+`npm install --save kafkajs`
+
+#### Code
 
 ```ts
-import { PgKafkaTrxOutbox } from 'pg-kafka-trx-outbox'
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { Kafka } from 'pg-trx-outbox/dist/src/adapters/kafka'
 
-const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+const pgTrxOutbox = new PgTrxOutbox({
   pgOptions: {/* [1] */},
-  kafkaOptions: {/* [2] */},
-  producerOptions: {
-    /* [3] */
-    acks: -1 // [4],
-    timeout: 30000 // [4]
-  },,
+  adapter: new Kafka({
+    kafkaOptions: {/* [2] */},
+    producerOptions: {
+      /* [3] */
+      acks: -1 // [4],
+      timeout: 30000 // [4]
+    },
+  }),
   outboxOptions: {
     mode: 'short-polling',
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
@@ -52,11 +62,11 @@ const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
   }
 });
 
-await pgKafkaTrxOutbox.start();
+await pgTrxOutbox.start();
 
 // on shutdown
 
-await pgKafkaTrxOutbox.stop();
+await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/client#new-client
@@ -69,33 +79,42 @@ await pgKafkaTrxOutbox.stop();
 For reducing latency PostgreSQL `LISTEN/NOTIFY` can be used. When message inserted in DB, `NOTIFY` called and all listeners try to fetch new messages.
 **Short polling** mode also used here, because `LISTEN/NOTIFY` not robust mechanism and notifications can be lost.
 
-### Example (notify)
+### Kafka Example (notify)
 
-`npm install --save pg-listen`
+#### Deps
+
+`npm install --save kafkajs pg-listen`
+
+#### SQL migration
 
 ```sql
-CREATE OR REPLACE FUNCTION pg_kafka_trx_outbox() RETURNS trigger AS $trigger$
+CREATE OR REPLACE FUNCTION pg_trx_outbox() RETURNS trigger AS $trigger$
   BEGIN
-    PERFORM pg_notify('pg_kafka_trx_outbox', '{}');
+    PERFORM pg_notify('pg_trx_outbox', '{}');
     RETURN NEW;
   END;
 $trigger$ LANGUAGE plpgsql;
 
-CREATE TRIGGER pg_kafka_trx_outbox AFTER INSERT ON pg_kafka_trx_outbox
-EXECUTE PROCEDURE pg_kafka_trx_outbox();
+CREATE TRIGGER pg_trx_outbox AFTER INSERT ON pg_trx_outbox
+EXECUTE PROCEDURE pg_trx_outbox();
 ```
 
-```ts
-import { PgKafkaTrxOutbox } from 'pg-kafka-trx-outbox'
+#### Code
 
-const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { Kafka } from 'pg-trx-outbox/dist/src/adapters/kafka'
+
+const pgTrxOutbox = new PgTrxOutbox({
   pgOptions: {/* [1] */},
-  kafkaOptions: {/* [2] */},
-  producerOptions: {
-    /* [3] */
-    acks: -1 // [4],
-    timeout: 30000 // [4]
-  },,
+  adapter: new Kafka({
+    kafkaOptions: {/* [2] */},
+    producerOptions: {
+      /* [3] */
+      acks: -1 // [4],
+      timeout: 30000 // [4]
+    },
+  }),
   outboxOptions: {
     mode: 'notify',
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
@@ -104,11 +123,11 @@ const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
   }
 });
 
-await pgKafkaTrxOutbox.start();
+await pgTrxOutbox.start();
 
 // on shutdown
 
-await pgKafkaTrxOutbox.stop();
+await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/client#new-client
@@ -120,43 +139,52 @@ await pgKafkaTrxOutbox.stop();
 
 In this mode messages replicated via PostgreSQL logical replication.
 
-### Example (logical)
+### Kafka Example (logical)
 
 Firstly, need to setup `wal_level=logical` in PostgreSQL config and restart it.
 
-`npm install --save pg-logical-replication dataloader p-queue@6.6.2`
+#### Deps
+
+`npm install --save kafkajs pg-logical-replication dataloader p-queue`
+
+#### SQL migration
 
 ```sql
 SELECT pg_create_logical_replication_slot(
-  'pg_kafka_trx_outbox',
+  'pg_trx_outbox',
   'pgoutput'
 );
 
-CREATE PUBLICATION pg_kafka_trx_outbox FOR TABLE pg_kafka_trx_outbox WITH (publish = 'insert');
+CREATE PUBLICATION pg_trx_outbox FOR TABLE pg_trx_outbox WITH (publish = 'insert');
 ```
 
-```ts
-import { PgKafkaTrxOutbox } from 'pg-kafka-trx-outbox'
+#### Code
 
-const pgKafkaTrxOutbox = new PgKafkaTrxOutbox({
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { Kafka } from 'pg-trx-outbox/dist/src/adapters/kafka'
+
+const pgTrxOutbox = new PgTrxOutbox({
   pgOptions: {/* [1] */},
-  kafkaOptions: {/* [2] */},
-  producerOptions: {
-    /* [3] */
-    acks: -1 // [4],
-    timeout: 30000 // [4]
-  },,
+  adapter: new Kafka({
+    kafkaOptions: {/* [2] */},
+    producerOptions: {
+      /* [3] */
+      acks: -1 // [4],
+      timeout: 30000 // [4]
+    },
+  }),
   outboxOptions: {
     mode: 'logical',
     onError(err) {/**/} // callback for catching uncaught error
   }
 });
 
-await pgKafkaTrxOutbox.start();
+await pgTrxOutbox.start();
 
 // on shutdown
 
-await pgKafkaTrxOutbox.stop();
+await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/client#new-client
