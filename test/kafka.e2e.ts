@@ -44,6 +44,7 @@ beforeEach(async () => {
       "timestamp" int8 NULL,
       headers jsonb NULL,
       response jsonb NULL,
+      error text NULL,
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
@@ -233,7 +234,7 @@ test('notify', async () => {
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
 })
 
-test('onError', async () => {
+test('onError callback', async () => {
   let err!: Error
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
@@ -313,4 +314,47 @@ test('logical', async () => {
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
+})
+
+test('sending error', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        throw new Error('test')
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: RecordMetadata
+    error: string
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, true)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response, null)
+  assert.match(processedRow.error, /Error: test/)
+
+  assert.strictEqual(messages.length, 0)
 })
