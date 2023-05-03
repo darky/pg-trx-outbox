@@ -19,7 +19,7 @@ export interface StartStop {
 }
 
 export interface Send {
-  send(messages: readonly OutboxMessage[]): Promise<void>
+  send(messages: readonly OutboxMessage[]): Promise<unknown[]>
 }
 
 export type Options = {

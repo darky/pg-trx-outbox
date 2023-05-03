@@ -9,8 +9,11 @@ export class Transfer {
       await this.pg.getClient().query('begin')
       const messages = passedMessages.length ? passedMessages : await this.fetchPgMessages()
       if (messages.length) {
-        await this.adapter.send(messages)
-        await this.updateToProcessed(messages.map(r => r.id))
+        const responses = await this.adapter.send(messages)
+        await this.updateToProcessed(
+          messages.map(r => r.id),
+          responses
+        )
       }
       await this.pg.getClient().query('commit')
     } catch (e) {
@@ -37,14 +40,18 @@ export class Transfer {
       .then(resp => resp.rows)
   }
 
-  private async updateToProcessed(ids: string[]) {
+  private async updateToProcessed(ids: string[], responses: unknown[]) {
     await this.pg.getClient().query(
       `
-        update pg_trx_outbox
-        set processed = true, updated_at = now()
-        where id = any($1)
+        with info as (select * from unnest($1::bigint[], $2::jsonb[]) x(id, resp))
+        update pg_trx_outbox p
+        set
+          processed = true,
+          updated_at = now(),
+          response = (select resp from info where info.id = p.id limit 1)
+        where p.id = any($1)
       `,
-      [ids]
+      [ids, responses]
     )
   }
 }

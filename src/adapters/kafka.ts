@@ -30,7 +30,7 @@ export class Kafka implements StartStop, Send {
   }
 
   async send(messages: readonly OutboxMessage[]) {
-    await this.producer.sendBatch({
+    return await this.producer.sendBatch({
       topicMessages: this.makeBatchForKafka(messages),
       acks: this.options.producerOptions?.acks ?? -1,
       timeout: this.options.producerOptions?.timeout ?? 30000,

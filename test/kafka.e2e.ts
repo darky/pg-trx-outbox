@@ -1,4 +1,4 @@
-import { Admin, Consumer, EachMessagePayload, Kafka as KafkaJS } from 'kafkajs'
+import { Admin, Consumer, EachMessagePayload, Kafka as KafkaJS, RecordMetadata } from 'kafkajs'
 import { afterEach, beforeEach, test } from 'node:test'
 import { Client } from 'pg'
 import { KafkaContainer, PostgreSqlContainer, StartedKafkaContainer, StartedPostgreSqlContainer } from 'testcontainers'
@@ -43,6 +43,7 @@ beforeEach(async () => {
       "partition" int2 NULL,
       "timestamp" int8 NULL,
       headers jsonb NULL,
+      response jsonb NULL,
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
@@ -128,9 +129,12 @@ test('short polling', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
+    response: RecordMetadata
   } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response.partition, 0)
+  assert.strictEqual(processedRow.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.topic, 'pg.kafka.trx.outbox')
@@ -173,12 +177,16 @@ test('limit', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
+    response: RecordMetadata
   }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+  assert.strictEqual(processedRow[0]?.response.partition, 0)
+  assert.strictEqual(processedRow[0]?.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(processedRow[1]?.processed, false)
   assert.strictEqual(processedRow[1]?.updated_at.toISOString(), processedRow[1]?.created_at.toISOString())
+  assert.strictEqual(processedRow[1]?.response, null)
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true, "n": 1}')
@@ -214,9 +222,12 @@ test('notify', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
+    response: RecordMetadata
   }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+  assert.strictEqual(processedRow[0]?.response.partition, 0)
+  assert.strictEqual(processedRow[0]?.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
@@ -292,10 +303,13 @@ test('logical', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
+    response: RecordMetadata
   }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
 
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
+  assert.strictEqual(processedRow[0]?.response.partition, 0)
+  assert.strictEqual(processedRow[0]?.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(messages.length, 1)
   assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
