@@ -1,36 +1,20 @@
+import { Pg } from './pg'
 import type { Options, OutboxMessage, Send, StartStop } from './types'
-import { Client } from 'pg'
 
-export class Transfer implements StartStop {
-  private pg: Client
-
-  constructor(private readonly options: Options, private readonly adapter: StartStop & Send) {
-    this.pg = new Client({
-      application_name: 'pg_trx_outbox',
-      ...options.pgOptions,
-    })
-    this.pg.on('error', err => this.options.outboxOptions?.onError?.(err))
-  }
-
-  async start() {
-    await this.pg.connect()
-  }
-
-  async stop() {
-    await this.pg.end()
-  }
+export class Transfer {
+  constructor(private readonly options: Options, private readonly pg: Pg, private readonly adapter: StartStop & Send) {}
 
   async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
     try {
-      await this.pg.query('begin')
+      await this.pg.getClient().query('begin')
       const messages = passedMessages.length ? passedMessages : await this.fetchPgMessages()
       if (messages.length) {
         await this.adapter.send(messages)
         await this.updateToProcessed(messages.map(r => r.id))
       }
-      await this.pg.query('commit')
+      await this.pg.getClient().query('commit')
     } catch (e) {
-      await this.pg.query('rollback')
+      await this.pg.getClient().query('rollback')
       if ((e as { code: string }).code !== '55P03') {
         throw e
       }
@@ -39,6 +23,7 @@ export class Transfer implements StartStop {
 
   private async fetchPgMessages() {
     return await this.pg
+      .getClient()
       .query<OutboxMessage>(
         `
           select * from pg_trx_outbox
@@ -53,7 +38,7 @@ export class Transfer implements StartStop {
   }
 
   private async updateToProcessed(ids: string[]) {
-    await this.pg.query(
+    await this.pg.getClient().query(
       `
         update pg_trx_outbox
         set processed = true, updated_at = now()
