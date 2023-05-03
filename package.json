@@ -30,7 +30,6 @@
   "author": "Vladislav Botvin",
   "license": "MIT",
   "dependencies": {
-    "kafkajs": "^2.2.4",
     "pg": "^8.10.0",
     "robot3": "^0.4.0",
     "ts-pattern": "^4.2.2"
@@ -44,6 +43,7 @@
   },
   "optionalDependencies": {
     "dataloader": "^2.2.2",
+    "kafkajs": "^2.2.4",
     "p-queue": "^7.3.4",
     "pg-listen": "^1.7.0",
     "pg-logical-replication": "^2.0.3"
