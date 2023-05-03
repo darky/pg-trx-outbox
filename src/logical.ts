@@ -14,7 +14,7 @@ export class Logical implements StartStop {
     import('pg-logical-replication').then(({ LogicalReplicationService }) => {
       this.logical = new LogicalReplicationService({
         ...options.pgOptions,
-        application_name: 'pg_kafka_trx_outbox_logical',
+        application_name: 'pg_trx_outbox_logical',
       })
       this.logical.on('error', err => options.outboxOptions?.onError?.(err))
       this.logical.on('data', (_, message: MessageInsert & { new: OutboxMessage }) => {
@@ -26,8 +26,8 @@ export class Logical implements StartStop {
   async start() {
     await import('pg-logical-replication').then(async ({ PgoutputPlugin }) => {
       this.logical.subscribe(
-        new PgoutputPlugin({ protoVersion: 1, publicationNames: ['pg_kafka_trx_outbox'] }),
-        'pg_kafka_trx_outbox'
+        new PgoutputPlugin({ protoVersion: 1, publicationNames: ['pg_trx_outbox'] }),
+        'pg_trx_outbox'
       )
     })
   }
@@ -64,7 +64,7 @@ export class Logical implements StartStop {
             batchScheduleFn(cb) {
               setTimeout(cb, 50)
             },
-            name: 'pg_kafka_trx_outbox',
+            name: 'pg_trx_outbox',
           }
         )
       })

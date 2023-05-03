@@ -28,11 +28,11 @@ beforeEach(async () => {
     user: pgDocker.getUsername(),
     password: pgDocker.getPassword(),
     database: pgDocker.getDatabase(),
-    application_name: 'pg_kafka_trx_outbox_admin',
+    application_name: 'pg_trx_outbox_admin',
   })
   await pg.connect()
   await pg.query(`
-    CREATE TABLE IF NOT EXISTS pg_kafka_trx_outbox (
+    CREATE TABLE IF NOT EXISTS pg_trx_outbox (
       id bigserial NOT NULL,
       processed bool NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -43,34 +43,34 @@ beforeEach(async () => {
       "partition" int2 NULL,
       "timestamp" int8 NULL,
       headers jsonb NULL,
-      CONSTRAINT pg_kafka_trx_outbox_pk PRIMARY KEY (id)
+      CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
   await pg.query(`
-    CREATE OR REPLACE FUNCTION pg_kafka_trx_outbox() RETURNS trigger AS $trigger$
+    CREATE OR REPLACE FUNCTION pg_trx_outbox() RETURNS trigger AS $trigger$
       BEGIN
-        PERFORM pg_notify('pg_kafka_trx_outbox', '{}');
+        PERFORM pg_notify('pg_trx_outbox', '{}');
         RETURN NEW;
       END;
     $trigger$ LANGUAGE plpgsql;
   `)
-  await pg.query(`DROP TRIGGER IF EXISTS pg_kafka_trx_outbox ON pg_kafka_trx_outbox;`)
+  await pg.query(`DROP TRIGGER IF EXISTS pg_trx_outbox ON pg_trx_outbox;`)
   await pg.query(`
-    CREATE TRIGGER pg_kafka_trx_outbox AFTER INSERT ON pg_kafka_trx_outbox
-    EXECUTE PROCEDURE pg_kafka_trx_outbox();
+    CREATE TRIGGER pg_trx_outbox AFTER INSERT ON pg_trx_outbox
+    EXECUTE PROCEDURE pg_trx_outbox();
   `)
   await pg.query(`
-    DROP PUBLICATION IF EXISTS pg_kafka_trx_outbox
+    DROP PUBLICATION IF EXISTS pg_trx_outbox
   `)
   try {
     await pg.query(`
-      SELECT pg_drop_replication_slot('pg_kafka_trx_outbox')
+      SELECT pg_drop_replication_slot('pg_trx_outbox')
     `)
   } catch (e) {}
-  await pg.query('truncate pg_kafka_trx_outbox')
+  await pg.query('truncate pg_trx_outbox')
 
   const kafka = new KafkaJS({
-    clientId: 'pg_kafka_trx_outbox_admin',
+    clientId: 'pg_trx_outbox_admin',
     brokers: [`${kafkaDocker.getHost()}:${kafkaDocker.getMappedPort(9093)}`],
   })
   kafkaAdmin = kafka.admin()
@@ -118,7 +118,7 @@ test('short polling', async () => {
   })
   await pgKafkaTrxOutbox.start()
   await pg.query(`
-    INSERT INTO pg_kafka_trx_outbox
+    INSERT INTO pg_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
     `)
@@ -128,7 +128,7 @@ test('short polling', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
-  } = await pg.query(`select * from pg_kafka_trx_outbox`).then(resp => resp.rows[0])
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
 
@@ -161,7 +161,7 @@ test('limit', async () => {
     },
   })
   await pg.query(`
-    INSERT INTO pg_kafka_trx_outbox
+    INSERT INTO pg_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 1}'),
         ('pg.kafka.trx.outbox', 'testKey', '{"test": true, "n": 2}');
@@ -173,7 +173,7 @@ test('limit', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
-  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+  }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
 
@@ -204,7 +204,7 @@ test('notify', async () => {
   })
   await pgKafkaTrxOutbox.start()
   await pg.query(`
-    INSERT INTO pg_kafka_trx_outbox
+    INSERT INTO pg_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
   `)
@@ -214,7 +214,7 @@ test('notify', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
-  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+  }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
 
@@ -246,22 +246,22 @@ test('onError', async () => {
   })
   await pgKafkaTrxOutbox.start()
   await pg.query(`
-    DROP TABLE pg_kafka_trx_outbox;
+    DROP TABLE pg_trx_outbox;
   `)
   await setTimeout(1000)
 
-  assert.match(err.message, /relation "pg_kafka_trx_outbox" does not exist/)
+  assert.match(err.message, /relation "pg_trx_outbox" does not exist/)
 })
 
 test('logical', async () => {
   await pg.query(`
     SELECT pg_create_logical_replication_slot(
-      'pg_kafka_trx_outbox',
+      'pg_trx_outbox',
       'pgoutput'
     )
   `)
   await pg.query(`
-    CREATE PUBLICATION pg_kafka_trx_outbox FOR TABLE pg_kafka_trx_outbox WITH (publish = 'insert');
+    CREATE PUBLICATION pg_trx_outbox FOR TABLE pg_trx_outbox WITH (publish = 'insert');
   `)
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new Kafka({
@@ -281,7 +281,7 @@ test('logical', async () => {
     },
   })
   await pg.query(`
-    INSERT INTO pg_kafka_trx_outbox
+    INSERT INTO pg_trx_outbox
       (topic, "key", value)
       VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
   `)
@@ -292,7 +292,7 @@ test('logical', async () => {
     processed: boolean
     created_at: Date
     updated_at: Date
-  }[] = await pg.query(`select * from pg_kafka_trx_outbox order by id`).then(resp => resp.rows)
+  }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
 
   assert.strictEqual(processedRow[0]?.processed, true)
   assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)

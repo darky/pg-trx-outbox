@@ -15,7 +15,7 @@ export class Kafka implements StartStop, Send {
     }
   ) {
     this.kafka = new KafkaJS({
-      clientId: 'pg_kafka_trx_outbox',
+      clientId: 'pg_trx_outbox',
       ...options.kafkaOptions,
     })
     this.producer = this.kafka.producer(options.producerOptions)

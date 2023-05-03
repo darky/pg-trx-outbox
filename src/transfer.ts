@@ -6,7 +6,7 @@ export class Transfer implements StartStop {
 
   constructor(private readonly options: Options, private readonly adapter: StartStop & Send) {
     this.pg = new Client({
-      application_name: 'pg_kafka_trx_outbox',
+      application_name: 'pg_trx_outbox',
       ...options.pgOptions,
     })
     this.pg.on('error', err => this.options.outboxOptions?.onError?.(err))
@@ -41,7 +41,7 @@ export class Transfer implements StartStop {
     return await this.pg
       .query<OutboxMessage>(
         `
-          select * from pg_kafka_trx_outbox
+          select * from pg_trx_outbox
           where processed = false
           order by id
           limit $1
@@ -55,7 +55,7 @@ export class Transfer implements StartStop {
   private async updateToProcessed(ids: string[]) {
     await this.pg.query(
       `
-        update pg_kafka_trx_outbox
+        update pg_trx_outbox
         set processed = true, updated_at = now()
         where id = any($1)
       `,
