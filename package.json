@@ -1,5 +1,5 @@
 {
-  "name": "pg-kafka-trx-outbox",
+  "name": "pg-trx-outbox",
   "version": "0.5.46",
   "description": "Transactional outbox from Postgres to Kafka",
   "main": "./dist/src/index.js",
@@ -21,7 +21,7 @@
   "types": "dist/src/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git@github.com:darky/pg-kafka-trx-outbox.git"
+    "url": "git@github.com:darky/pg-trx-outbox.git"
   },
   "files": [
     "dist/src/*.js",
