@@ -31,6 +31,7 @@ export type Options = {
   adapter: Adapter
   outboxOptions?: {
     pollInterval?: number
+    logicalBatchInterval?: number
     limit?: number
     mode?: 'short-polling' | 'notify' | 'logical'
     onError?: (err: Error) => unknown

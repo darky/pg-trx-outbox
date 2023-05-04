@@ -10,13 +10,13 @@ export class Logical implements StartStop {
   private dataLoader?: DataLoader<OutboxMessage, OutboxMessage>
   private queue?: PQueue
 
-  constructor(options: Options, private transfer: Transfer) {
+  constructor(private options: Options, private transfer: Transfer) {
     import('pg-logical-replication').then(({ LogicalReplicationService }) => {
       this.logical = new LogicalReplicationService({
-        ...options.pgOptions,
+        ...this.options.pgOptions,
         application_name: 'pg_trx_outbox_logical',
       })
-      this.logical.on('error', err => options.outboxOptions?.onError?.(err))
+      this.logical.on('error', err => this.options.outboxOptions?.onError?.(err))
       this.logical.on('data', (_, message: MessageInsert & { new: OutboxMessage }) => {
         message.tag === 'insert' && this.queueMessageForTransfer(message.new)
       })
@@ -61,8 +61,8 @@ export class Logical implements StartStop {
           },
           {
             cache: false,
-            batchScheduleFn(cb) {
-              setTimeout(cb, 50)
+            batchScheduleFn: cb => {
+              setTimeout(cb, this.options.outboxOptions?.logicalBatchInterval ?? 100)
             },
             name: 'pg_trx_outbox',
           }
