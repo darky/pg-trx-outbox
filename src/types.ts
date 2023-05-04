@@ -1,4 +1,4 @@
-import type { ClientConfig } from 'pg'
+import type { PoolConfig } from 'pg'
 
 export type OutboxMessage = {
   id: string
@@ -27,7 +27,7 @@ export interface Send {
 export type Adapter = StartStop & Send
 
 export type Options = {
-  pgOptions: ClientConfig
+  pgOptions: PoolConfig
   adapter: Adapter
   outboxOptions?: {
     pollInterval?: number
