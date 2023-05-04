@@ -6,11 +6,13 @@ import { FSM } from './fsm'
 import { Logical } from './logical'
 import { P, match } from 'ts-pattern'
 import { Pg } from './pg'
+import { Responder } from './responder'
 
 export class PgTrxOutbox implements StartStop {
   private pg: Pg
   private transfer: Transfer
   private adapter: Adapter
+  private responder: Responder
   private poller?: Poller
   private notifier?: Notifier
   private logical?: Logical
@@ -19,6 +21,7 @@ export class PgTrxOutbox implements StartStop {
     this.adapter = options.adapter
     this.pg = new Pg(options)
     this.transfer = new Transfer(options, this.pg, this.adapter)
+    this.responder = new Responder(this.pg)
     const fsm = new FSM(options, this.transfer)
     match(options.outboxOptions?.mode)
       .with(P.union('short-polling', void 0), () => (this.poller = new Poller(options, fsm)))
@@ -33,6 +36,7 @@ export class PgTrxOutbox implements StartStop {
   async start() {
     await this.adapter.start()
     await this.pg.start()
+    await this.responder.start()
     await this.poller?.start()
     await this.notifier?.start()
     await this.logical?.start()
@@ -42,7 +46,12 @@ export class PgTrxOutbox implements StartStop {
     await this.logical?.stop()
     await this.notifier?.stop()
     await this.poller?.stop()
+    await this.responder.stop()
     await this.pg.stop()
     await this.adapter.stop()
+  }
+
+  async waitResponse(id: string) {
+    return this.responder.waitResponse(id)
   }
 }

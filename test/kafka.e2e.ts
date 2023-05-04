@@ -358,3 +358,73 @@ test('sending error', async () => {
 
   assert.strictEqual(messages.length, 0)
 })
+
+test('waitResponse success', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return []
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  const [{ id } = { id: '' }] = await pg
+    .query<{ id: string }>(
+      `
+        INSERT INTO pg_trx_outbox (topic, "key", value, processed, response)
+        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, '{"test": true}')
+        RETURNING id;
+      `
+    )
+    .then(resp => resp.rows)
+
+  const resp = (await pgKafkaTrxOutbox.waitResponse(id)) as { test: true }
+
+  assert.strictEqual(resp.test, true)
+})
+
+test('waitResponse error', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return []
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  const [{ id } = { id: '' }] = await pg
+    .query<{ id: string }>(
+      `
+        INSERT INTO pg_trx_outbox (topic, "key", value, processed, error)
+        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, 'test')
+        RETURNING id;
+      `
+    )
+    .then(resp => resp.rows)
+
+  assert.rejects(() => pgKafkaTrxOutbox.waitResponse(id), new Error('test'))
+})

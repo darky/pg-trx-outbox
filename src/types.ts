@@ -10,6 +10,8 @@ export type OutboxMessage = {
   value: string | null
   partition: number | null
   timestamp: string
+  response: unknown
+  error: unknown
   headers: Record<string, string> | null
 }
 
