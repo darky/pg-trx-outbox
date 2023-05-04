@@ -390,7 +390,7 @@ test('waitResponse success', async () => {
     )
     .then(resp => resp.rows)
 
-  const resp = (await pgKafkaTrxOutbox.waitResponse(id)) as { test: true }
+  const resp = await pgKafkaTrxOutbox.waitResponse<{ test: true }>(id)
 
   assert.strictEqual(resp.test, true)
 })
