@@ -21,7 +21,7 @@ export class PgTrxOutbox implements StartStop {
     this.adapter = options.adapter
     this.pg = new Pg(options)
     this.transfer = new Transfer(options, this.pg, this.adapter)
-    this.responder = new Responder(this.pg)
+    this.responder = new Responder(options, this.pg)
     const fsm = new FSM(options, this.transfer)
     match(options.outboxOptions?.mode)
       .with(P.union('short-polling', void 0), () => (this.poller = new Poller(options, fsm)))

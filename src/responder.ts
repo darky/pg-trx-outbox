@@ -1,5 +1,5 @@
 import type { Pg } from './pg'
-import type { OutboxMessage, StartStop } from './types'
+import type { Options, OutboxMessage, StartStop } from './types'
 
 export class Responder implements StartStop {
   private timer?: NodeJS.Timer
@@ -8,12 +8,12 @@ export class Responder implements StartStop {
     { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }
   >()
 
-  constructor(private pg: Pg) {}
+  constructor(private options: Options, private pg: Pg) {}
 
   async start() {
     this.timer = setInterval(() => {
       this.respond()
-    }, 100)
+    }, this.options.outboxOptions?.respondInterval ?? 100)
   }
 
   async stop() {
