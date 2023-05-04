@@ -1,7 +1,7 @@
 import { Producer, Kafka as KafkaJS, KafkaConfig, ProducerConfig } from 'kafkajs'
-import type { OutboxMessage, Send, StartStop } from '../types'
+import type { Adapter, OutboxMessage } from '../types'
 
-export class Kafka implements StartStop, Send {
+export class Kafka implements Adapter {
   private producer: Producer
   private kafka: KafkaJS
 

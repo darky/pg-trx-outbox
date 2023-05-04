@@ -1,4 +1,4 @@
-import type { Options, Send, StartStop } from './types'
+import type { Adapter, Options, StartStop } from './types'
 import { Notifier } from './notifier'
 import { Poller } from './poller'
 import { Transfer } from './transfer'
@@ -10,7 +10,7 @@ import { Pg } from './pg'
 export class PgTrxOutbox implements StartStop {
   private pg: Pg
   private transfer: Transfer
-  private adapter: StartStop & Send
+  private adapter: Adapter
   private poller?: Poller
   private notifier?: Notifier
   private logical?: Logical

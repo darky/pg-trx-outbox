@@ -1,8 +1,8 @@
 import { Pg } from './pg'
-import type { Options, OutboxMessage, Send, StartStop } from './types'
+import type { Adapter, Options, OutboxMessage } from './types'
 
 export class Transfer {
-  constructor(private readonly options: Options, private readonly pg: Pg, private readonly adapter: StartStop & Send) {}
+  constructor(private readonly options: Options, private readonly pg: Pg, private readonly adapter: Adapter) {}
 
   async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
     let messages: readonly OutboxMessage[] = []

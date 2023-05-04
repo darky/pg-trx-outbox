@@ -22,9 +22,11 @@ export interface Send {
   send(messages: readonly OutboxMessage[]): Promise<unknown[]>
 }
 
+export type Adapter = StartStop & Send
+
 export type Options = {
   pgOptions: ClientConfig
-  adapter: StartStop & Send
+  adapter: Adapter
   outboxOptions?: {
     pollInterval?: number
     limit?: number
