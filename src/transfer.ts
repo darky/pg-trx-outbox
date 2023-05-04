@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg'
 import { Pg } from './pg'
 import type { Adapter, Options, OutboxMessage } from './types'
 
@@ -6,12 +7,14 @@ export class Transfer {
 
   async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
     let messages: readonly OutboxMessage[] = []
+    const client = await this.pg.getClient()
     try {
-      await this.pg.getClient().query('begin')
-      messages = passedMessages.length ? passedMessages : await this.fetchPgMessages()
+      await client.query('begin')
+      messages = passedMessages.length ? passedMessages : await this.fetchPgMessages(client)
       if (messages.length) {
         const responses = await this.adapter.send(messages)
         await this.updateToProcessed(
+          client,
           messages.map(r => r.id),
           responses,
           messages.map(() => null)
@@ -21,6 +24,7 @@ export class Transfer {
       if ((e as { code: string }).code !== '55P03') {
         if (messages.length) {
           await this.updateToProcessed(
+            client,
             messages.map(r => r.id),
             messages.map(() => null),
             messages.map(() => (e as Error).stack ?? (e as Error).message ?? e)
@@ -29,13 +33,13 @@ export class Transfer {
         throw e
       }
     } finally {
-      await this.pg.getClient().query('commit')
+      await client.query('commit')
+      client.release()
     }
   }
 
-  private async fetchPgMessages() {
-    return await this.pg
-      .getClient()
+  private async fetchPgMessages(client: PoolClient) {
+    return await client
       .query<OutboxMessage>(
         `
           select * from pg_trx_outbox
@@ -49,8 +53,8 @@ export class Transfer {
       .then(resp => resp.rows)
   }
 
-  private async updateToProcessed(ids: string[], responses: unknown[], errors: (string | null)[]) {
-    await this.pg.getClient().query(
+  private async updateToProcessed(client: PoolClient, ids: string[], responses: unknown[], errors: (string | null)[]) {
+    await client.query(
       `
         with info as (select * from unnest($1::bigint[], $2::jsonb[], $3::text[]) x(id, resp, err))
         update pg_trx_outbox p

@@ -1,26 +1,30 @@
-import { Client } from 'pg'
+import { Pool, QueryResultRow } from 'pg'
 import type { Options, StartStop } from './types'
 
 export class Pg implements StartStop {
-  private pg: Client
+  private pool: Pool
 
   constructor(options: Options) {
-    this.pg = new Client({
+    this.pool = new Pool({
       application_name: 'pg_trx_outbox',
       ...options.pgOptions,
     })
-    this.pg.on('error', err => options.outboxOptions?.onError?.(err))
+    this.pool.on('error', err => options.outboxOptions?.onError?.(err))
+  }
+
+  query<T extends QueryResultRow>(sql: string, values: unknown[]) {
+    return this.pool.query<T>(sql, values)
   }
 
   getClient() {
-    return this.pg
+    return this.pool.connect()
   }
 
   async start() {
-    await this.pg.connect()
+    await this.pool.query('select 1')
   }
 
   async stop() {
-    await this.pg.end()
+    await this.pool.end()
   }
 }

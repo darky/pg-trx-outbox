@@ -37,7 +37,6 @@ export class Responder implements StartStop {
     }
 
     const processed = await this.pg
-      .getClient()
       .query<OutboxMessage>(
         `
           select * from pg_trx_outbox
