@@ -30,11 +30,26 @@ export type Options = {
   pgOptions: PoolConfig
   adapter: Adapter
   outboxOptions?: {
+    /**
+     * how often to poll PostgreSQL for new messages, default 5000 milliseconds
+     */
     pollInterval?: number
+    /**
+     * how often to process new messages in 'logical' mode, default 100 milliseconds
+     */
     logicalBatchInterval?: number
+    /**
+     * how often to process responses of messages, default 100 milliseconds
+     */
     respondInterval?: number
+    /**
+     * how much messages send for processing, default 50
+     */
     limit?: number
     mode?: 'short-polling' | 'notify' | 'logical'
+    /**
+     * callback for handling uncaught error
+     */
     onError?: (err: Error) => unknown
   }
 }
