@@ -44,7 +44,7 @@ export class Kafka implements Adapter {
       topic,
       messages: rows.map(r => ({
         key: r.key,
-        value: r.value,
+        value: JSON.stringify(r.value),
         partititon: r.partition,
         timestamp: r.timestamp,
         headers: r.headers ?? {},

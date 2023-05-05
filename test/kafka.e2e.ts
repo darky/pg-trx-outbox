@@ -39,7 +39,7 @@ beforeEach(async () => {
       updated_at timestamptz NOT NULL DEFAULT now(),
       topic text NOT NULL,
       "key" text NULL,
-      value text NULL,
+      value jsonb NULL,
       "partition" int2 NULL,
       "timestamp" int8 NULL,
       headers jsonb NULL,
@@ -141,7 +141,7 @@ test('short polling', async () => {
   assert.strictEqual(messages[0]?.topic, 'pg.kafka.trx.outbox')
   assert.strictEqual(messages[0]?.partition, 0)
   assert.strictEqual(messages[0]?.message.key?.toString(), 'testKey')
-  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test":true}')
   assert.strictEqual(messages[0]?.message.offset, '0')
   assert.strictEqual(Date.now() - Number(messages[0]?.message.timestamp) < 1000, true)
 })
@@ -190,7 +190,7 @@ test('limit', async () => {
   assert.strictEqual(processedRow[1]?.response, null)
 
   assert.strictEqual(messages.length, 1)
-  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true, "n": 1}')
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"n":1,"test":true}')
 })
 
 test('notify', async () => {
@@ -231,7 +231,7 @@ test('notify', async () => {
   assert.strictEqual(processedRow[0]?.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(messages.length, 1)
-  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test":true}')
 })
 
 test('onError callback', async () => {
@@ -313,7 +313,7 @@ test('logical', async () => {
   assert.strictEqual(processedRow[0]?.response.topicName, 'pg.kafka.trx.outbox')
 
   assert.strictEqual(messages.length, 1)
-  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test": true}')
+  assert.strictEqual(messages[0]?.message.value?.toString(), '{"test":true}')
 })
 
 test('sending error', async () => {
