@@ -30,11 +30,17 @@ export class Kafka implements Adapter {
   }
 
   async send(messages: readonly OutboxMessage[]) {
-    return await this.producer.sendBatch({
-      topicMessages: this.makeBatchForKafka(messages),
-      acks: this.options.producerOptions?.acks ?? -1,
-      timeout: this.options.producerOptions?.timeout ?? 30000,
-    })
+    try {
+      return await this.producer
+        .sendBatch({
+          topicMessages: this.makeBatchForKafka(messages),
+          acks: this.options.producerOptions?.acks ?? -1,
+          timeout: this.options.producerOptions?.timeout ?? 30000,
+        })
+        .then(rms => rms.map(value => ({ status: 'fulfilled' as const, value })))
+    } catch (reason) {
+      return messages.map(() => ({ status: 'rejected' as const, reason }))
+    }
   }
 
   private makeBatchForKafka(messages: readonly OutboxMessage[]) {

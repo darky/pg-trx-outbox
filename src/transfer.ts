@@ -16,8 +16,10 @@ export class Transfer {
         await this.updateToProcessed(
           client,
           messages.map(r => r.id),
-          responses,
-          messages.map(() => null)
+          responses.map(r => (r.status === 'fulfilled' ? r.value : null)),
+          responses.map(r =>
+            r.status === 'rejected' ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason : null
+          )
         )
       }
     } catch (e) {

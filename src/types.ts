@@ -7,7 +7,7 @@ export type OutboxMessage = {
   updated_at: Date
   topic: string
   key: string | null
-  value: string | null
+  value: unknown
   partition: number | null
   timestamp: string
   response: unknown
@@ -21,7 +21,7 @@ export interface StartStop {
 }
 
 export interface Send {
-  send(messages: readonly OutboxMessage[]): Promise<unknown[]>
+  send(messages: readonly OutboxMessage[]): Promise<(PromiseFulfilledResult<unknown> | PromiseRejectedResult)[]>
 }
 
 export type Adapter = StartStop & Send
