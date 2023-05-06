@@ -51,5 +51,9 @@ export type Options = {
      * callback for handling uncaught error
      */
     onError?: (err: Error) => unknown
+    /**
+     * For scaling by partitions, pass partition number 0..n
+     */
+    partition?: number
   }
 }

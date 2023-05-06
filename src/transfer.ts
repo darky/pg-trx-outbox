@@ -44,7 +44,9 @@ export class Transfer {
     return await client
       .query<OutboxMessage>(
         `
-          select * from pg_trx_outbox
+          select * from pg_trx_outbox${
+            this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+          }
           where processed = false
           order by id
           limit $1
@@ -59,7 +61,9 @@ export class Transfer {
     await client.query(
       `
         with info as (select * from unnest($1::bigint[], $2::jsonb[], $3::text[]) x(id, resp, err))
-        update pg_trx_outbox p
+        update pg_trx_outbox${
+          this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+        } p
         set
           processed = true,
           updated_at = now(),
