@@ -5,7 +5,7 @@ export class Responder implements StartStop {
   private timer?: NodeJS.Timer
   private waitResponsesMap = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }
+    { resolve: (value: unknown) => void; reject: (reason?: unknown) => void; key?: string | void }
   >()
 
   constructor(private options: Options, private pg: Pg) {}
@@ -20,9 +20,9 @@ export class Responder implements StartStop {
     clearInterval(this.timer)
   }
 
-  async waitResponse(id: string) {
+  async waitResponse(id: string, key?: string) {
     return new Promise((resolve, reject) => {
-      this.waitResponsesMap.set(id, { resolve, reject })
+      this.waitResponsesMap.set(id, { resolve, reject, key })
     })
   }
 
@@ -31,14 +31,18 @@ export class Responder implements StartStop {
       return
     }
 
+    const keys = Array.from(this.waitResponsesMap.values())
+      .filter(x => !!x.key)
+      .map(x => x.key as string)
+
     const processed = await this.pg
       .query<Pick<OutboxMessage, 'id' | 'error' | 'response'>>(
         `
           select id, response, error
           from pg_trx_outbox
-          where id = any($1) and processed
+          where id = any($1) and processed ${keys.length ? 'and key = any($2)' : ''}
         `,
-        [Array.from(this.waitResponsesMap.keys())]
+        [Array.from(this.waitResponsesMap.keys()), ...(keys.length ? keys : [])]
       )
       .then(resp => resp.rows)
 
