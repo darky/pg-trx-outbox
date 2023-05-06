@@ -27,29 +27,26 @@ export class Responder implements StartStop {
   }
 
   private async respond() {
-    const waitResponsesMap = new Map(this.waitResponsesMap)
-    const ids = Array.from(this.waitResponsesMap.keys())
-
-    this.waitResponsesMap.clear()
-
-    if (!ids.length) {
+    if (!this.waitResponsesMap.size) {
       return
     }
 
     const processed = await this.pg
-      .query<OutboxMessage>(
+      .query<Pick<OutboxMessage, 'id' | 'error' | 'response'>>(
         `
-          select * from pg_trx_outbox
+          select id, response, error
+          from pg_trx_outbox
           where id = any($1) and processed
         `,
-        [ids]
+        [Array.from(this.waitResponsesMap.keys())]
       )
       .then(resp => resp.rows)
 
-    processed.forEach(message =>
+    processed.forEach(message => {
       message.error
-        ? waitResponsesMap.get(message.id)?.reject(message.error)
-        : waitResponsesMap.get(message.id)?.resolve(message.response)
-    )
+        ? this.waitResponsesMap.get(message.id)?.reject(message.error)
+        : this.waitResponsesMap.get(message.id)?.resolve(message.response)
+      this.waitResponsesMap.delete(message.id)
+    })
   }
 }
