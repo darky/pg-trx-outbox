@@ -42,7 +42,7 @@ export class Responder implements StartStop {
           from pg_trx_outbox
           where id = any($1) and processed ${keys.length ? 'and key = any($2)' : ''}
         `,
-        [Array.from(this.waitResponsesMap.keys()), ...(keys.length ? keys : [])]
+        [Array.from(this.waitResponsesMap.keys()), ...(keys.length ? [keys] : [])]
       )
       .then(resp => resp.rows)
 
