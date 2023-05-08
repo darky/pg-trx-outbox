@@ -1,0 +1,181 @@
+import { afterEach, beforeEach, test } from 'node:test'
+import { PgTrxOutbox } from '../src'
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from 'testcontainers'
+import { Client } from 'pg'
+import assert from 'node:assert'
+import { OutboxMessage } from '../src/types'
+import { setTimeout } from 'timers/promises'
+
+let pgDocker: StartedPostgreSqlContainer
+let pg: Client
+let pgKafkaTrxOutbox: PgTrxOutbox
+
+beforeEach(async () => {
+  pgDocker = await new PostgreSqlContainer()
+    .withReuse()
+    .withCommand(['-c', 'fsync=off', '-c', 'wal_level=logical'])
+    .start()
+
+  pg = new Client({
+    host: pgDocker.getHost(),
+    port: pgDocker.getPort(),
+    user: pgDocker.getUsername(),
+    password: pgDocker.getPassword(),
+    database: pgDocker.getDatabase(),
+    application_name: 'pg_trx_outbox_admin',
+  })
+  await pg.connect()
+  await pg.query(`
+    CREATE TABLE IF NOT EXISTS pg_trx_outbox (
+      id bigserial NOT NULL,
+      processed bool NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      topic text NOT NULL,
+      "key" text NULL,
+      value jsonb NULL,
+      "partition" int2 NULL,
+      "timestamp" int8 NULL,
+      headers jsonb NULL,
+      response jsonb NULL,
+      error text NULL,
+      CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
+    );
+  `)
+  await pg.query(`
+    CREATE OR REPLACE FUNCTION pg_trx_outbox() RETURNS trigger AS $trigger$
+      BEGIN
+        PERFORM pg_notify('pg_trx_outbox', '{}');
+        RETURN NEW;
+      END;
+    $trigger$ LANGUAGE plpgsql;
+  `)
+  await pg.query(`DROP TRIGGER IF EXISTS pg_trx_outbox ON pg_trx_outbox;`)
+  await pg.query(`
+    CREATE TRIGGER pg_trx_outbox AFTER INSERT ON pg_trx_outbox
+    EXECUTE PROCEDURE pg_trx_outbox();
+  `)
+  await pg.query(`
+    DROP PUBLICATION IF EXISTS pg_trx_outbox
+  `)
+  try {
+    await pg.query(`
+      SELECT pg_drop_replication_slot('pg_trx_outbox')
+    `)
+  } catch (e) {}
+  await pg.query('truncate pg_trx_outbox')
+})
+
+afterEach(async () => {
+  await pgKafkaTrxOutbox.stop()
+  await pg.end()
+})
+
+test('waitResponse success', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return []
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  const [{ id } = { id: '' }] = await pg
+    .query<{ id: string }>(
+      `
+        INSERT INTO pg_trx_outbox (topic, "key", value, processed, response)
+        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, '{"test": true}')
+        RETURNING id;
+      `
+    )
+    .then(resp => resp.rows)
+
+  const resp = await pgKafkaTrxOutbox.waitResponse<{ test: true }>(id)
+
+  assert.strictEqual(resp.test, true)
+})
+
+test('waitResponse error', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return []
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  const [{ id } = { id: '' }] = await pg
+    .query<{ id: string }>(
+      `
+        INSERT INTO pg_trx_outbox (topic, "key", value, processed, error)
+        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, 'test')
+        RETURNING id;
+      `
+    )
+    .then(resp => resp.rows)
+
+  assert.rejects(() => pgKafkaTrxOutbox.waitResponse(id), new Error('test'))
+})
+
+test('Adapter.send should satisfy Promise.allSettled', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send(messages) {
+        return Promise.allSettled(
+          messages.map(async m => ((m.value as { success: true }).success ? { ok: true } : Promise.reject('err')))
+        )
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+    `
+  )
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+  assert.strictEqual((resp[0]?.response as { ok: true }).ok, true)
+  assert.strictEqual(resp[0]?.error, null)
+  assert.strictEqual(resp[1]?.response, null)
+  assert.strictEqual(resp[1]?.error, 'err')
+})
