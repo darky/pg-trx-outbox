@@ -1,7 +1,23 @@
+import { action, createMachine, interpret, invoke, state, transition } from 'robot3'
 import type { Pg } from './pg'
 import type { Options, OutboxMessage, StartStop } from './types'
 
 export class Responder implements StartStop {
+  private fsm = interpret(
+    createMachine('wait', {
+      wait: state(transition('respond', 'processing')),
+      processing: invoke(
+        () => this.respond(),
+        transition('done', 'wait'),
+        transition(
+          'error',
+          'wait',
+          action((_, { error }: { error: Error }) => this.options.outboxOptions?.onError?.(error))
+        )
+      ),
+    }),
+    () => {}
+  )
   private timer?: NodeJS.Timer
   private waitResponsesMap = new Map<
     string,
@@ -12,7 +28,7 @@ export class Responder implements StartStop {
 
   async start() {
     this.timer = setInterval(() => {
-      this.respond()
+      this.fsm.send('respond')
     }, this.options.outboxOptions?.respondInterval ?? 100)
   }
 
