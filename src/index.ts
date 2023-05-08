@@ -60,7 +60,7 @@ export class PgTrxOutbox implements StartStop {
     await this.adapter.stop()
   }
 
-  async waitResponse<T>(id: string) {
-    return this.responder.waitResponse(id) as T
+  async waitResponse<T>(id: string, key?: string) {
+    return this.responder.waitResponse(id, key) as T
   }
 }

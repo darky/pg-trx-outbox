@@ -140,6 +140,6 @@ test('waitResponse on partition success', async () => {
     )
     .then(r => (r.rows[0] ?? { id: '' }).id)
 
-  const resp = await pgKafkaTrxOutbox.waitResponse<{ ok: true }>(id)
+  const resp = await pgKafkaTrxOutbox.waitResponse<{ ok: true }>(id, 'testKey')
   assert.deepEqual(resp, { ok: true })
 })
