@@ -18,11 +18,14 @@ export class PgTrxOutbox implements StartStop {
   private logical?: Logical
 
   constructor(options: Options) {
-    const opts = {
-      onError(err: Error) {
-        console.error(`Error happens on pg-trx-outbox: ${err.stack ?? err.message ?? err}`)
-      },
+    const opts: Options = {
       ...options,
+      outboxOptions: {
+        onError(err: Error) {
+          console.error(`Error happens on pg-trx-outbox: ${err.stack ?? err.message ?? err}`)
+        },
+        ...options.outboxOptions,
+      },
     }
     this.adapter = opts.adapter
     this.pg = new Pg(opts)
