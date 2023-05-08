@@ -5,7 +5,7 @@
   "main": "./dist/src/index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "test": "tsx test/kafka.e2e.ts && tsx test/error.e2e.ts && tsx test/responder.e2e.ts",
+    "test": "tsx test/kafka.e2e.ts && tsx test/error.e2e.ts && tsx test/responder.e2e.ts && tsx test/partitioning.e2e.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

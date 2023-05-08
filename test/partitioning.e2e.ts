@@ -40,9 +40,12 @@ beforeEach(async () => {
       headers jsonb NULL,
       response jsonb NULL,
       error text NULL,
-      CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
-    );
+      CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id, key)
+    ) PARTITION BY HASH (key);
   `)
+  await pg.query(`CREATE TABLE pg_trx_outbox_0 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 0);`)
+  await pg.query(`CREATE TABLE pg_trx_outbox_1 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 1);`)
+  await pg.query(`CREATE TABLE pg_trx_outbox_2 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 2);`)
   await pg.query(`
     CREATE OR REPLACE FUNCTION pg_trx_outbox() RETURNS trigger AS $trigger$
       BEGIN
@@ -71,13 +74,13 @@ afterEach(async () => {
   await pg.end()
 })
 
-test('waitResponse success', async () => {
+test('partition handling success', async () => {
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
       async send() {
-        return []
+        return [{ status: 'fulfilled', value: { ok: true } }]
       },
     },
     pgOptions: {
@@ -89,93 +92,54 @@ test('waitResponse success', async () => {
     },
     outboxOptions: {
       pollInterval: 300,
-    },
-  })
-  await pgKafkaTrxOutbox.start()
-  const [{ id } = { id: '' }] = await pg
-    .query<{ id: string }>(
-      `
-        INSERT INTO pg_trx_outbox (topic, "key", value, processed, response)
-        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, '{"test": true}')
-        RETURNING id;
-      `
-    )
-    .then(resp => resp.rows)
-
-  const resp = await pgKafkaTrxOutbox.waitResponse<{ test: true }>(id)
-
-  assert.strictEqual(resp.test, true)
-})
-
-test('waitResponse error', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
-    adapter: {
-      async start() {},
-      async stop() {},
-      async send() {
-        return []
-      },
-    },
-    pgOptions: {
-      host: pgDocker.getHost(),
-      port: pgDocker.getPort(),
-      user: pgDocker.getUsername(),
-      password: pgDocker.getPassword(),
-      database: pgDocker.getDatabase(),
-    },
-    outboxOptions: {
-      pollInterval: 300,
-    },
-  })
-  await pgKafkaTrxOutbox.start()
-  const [{ id } = { id: '' }] = await pg
-    .query<{ id: string }>(
-      `
-        INSERT INTO pg_trx_outbox (topic, "key", value, processed, error)
-        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, 'test')
-        RETURNING id;
-      `
-    )
-    .then(resp => resp.rows)
-
-  assert.rejects(() => pgKafkaTrxOutbox.waitResponse(id), new Error('test'))
-})
-
-test('Adapter.send should satisfy Promise.allSettled', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
-    adapter: {
-      async start() {},
-      async stop() {},
-      async send(messages) {
-        return Promise.allSettled(
-          messages.map(async m => ((m.value as { success: true }).success ? { ok: true } : Promise.reject('err')))
-        )
-      },
-    },
-    pgOptions: {
-      host: pgDocker.getHost(),
-      port: pgDocker.getPort(),
-      user: pgDocker.getUsername(),
-      password: pgDocker.getPassword(),
-      database: pgDocker.getDatabase(),
-    },
-    outboxOptions: {
-      pollInterval: 300,
+      partition: 0,
     },
   })
   await pgKafkaTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}')
     `
   )
   await setTimeout(1000)
 
-  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
-  assert.strictEqual((resp[0]?.response as { ok: true }).ok, true)
-  assert.strictEqual(resp[0]?.error, null)
-  assert.strictEqual(resp[1]?.response, null)
-  assert.strictEqual(resp[1]?.error, 'err')
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox_0').then(r => r.rows)
+  assert.deepEqual(resp[0]?.response, { ok: true })
+})
+
+test('waitResponse on partition success', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return [{ status: 'fulfilled', value: { ok: true } }]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+      partition: 0,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  const id = await pg
+    .query<{ id: string }>(
+      `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}')
+      RETURNING id
+    `
+    )
+    .then(r => (r.rows[0] ?? { id: '' }).id)
+
+  const resp = await pgKafkaTrxOutbox.waitResponse<{ ok: true }>(id)
+  assert.deepEqual(resp, { ok: true })
 })

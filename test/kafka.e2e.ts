@@ -31,6 +31,7 @@ beforeEach(async () => {
     application_name: 'pg_trx_outbox_admin',
   })
   await pg.connect()
+  await pg.query('DROP TABLE IF EXISTS pg_trx_outbox')
   await pg.query(`
     CREATE TABLE IF NOT EXISTS pg_trx_outbox (
       id bigserial NOT NULL,
@@ -69,7 +70,6 @@ beforeEach(async () => {
       SELECT pg_drop_replication_slot('pg_trx_outbox')
     `)
   } catch (e) {}
-  await pg.query('truncate pg_trx_outbox')
 
   const kafka = new KafkaJS({
     clientId: 'pg_trx_outbox_admin',
