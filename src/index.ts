@@ -18,18 +18,24 @@ export class PgTrxOutbox implements StartStop {
   private logical?: Logical
 
   constructor(options: Options) {
-    this.adapter = options.adapter
-    this.pg = new Pg(options)
-    this.transfer = new Transfer(options, this.pg, this.adapter)
-    this.responder = new Responder(options, this.pg)
-    const fsm = new FSM(options, this.transfer)
-    match(options.outboxOptions?.mode)
-      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(options, fsm)))
+    const opts = {
+      onError(err: Error) {
+        console.error(`Error happens on pg-trx-outbox: ${err.stack ?? err.message ?? err}`)
+      },
+      ...options,
+    }
+    this.adapter = opts.adapter
+    this.pg = new Pg(opts)
+    this.transfer = new Transfer(opts, this.pg, this.adapter)
+    this.responder = new Responder(opts, this.pg)
+    const fsm = new FSM(opts, this.transfer)
+    match(opts.outboxOptions?.mode)
+      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(opts, fsm)))
       .with('notify', () => {
-        this.poller = new Poller(options, fsm)
-        this.notifier = new Notifier(options, fsm)
+        this.poller = new Poller(opts, fsm)
+        this.notifier = new Notifier(opts, fsm)
       })
-      .with('logical', () => (this.logical = new Logical(options, this.transfer)))
+      .with('logical', () => (this.logical = new Logical(opts, this.transfer)))
       .exhaustive()
   }
 
