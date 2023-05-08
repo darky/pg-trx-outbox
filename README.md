@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   updated_at timestamptz NOT NULL DEFAULT now(),
   topic text NOT NULL,
   "key" text NULL,
-  value text NULL,
+  value jsonb NULL,
   "partition" int2 NULL,
   "timestamp" int8 NULL,
   headers jsonb NULL,
@@ -203,7 +203,7 @@ Some adapters for Transactional Outbox destination are built-in.<br/>
 You can find it here: https://github.com/darky/pg-trx-outbox/tree/master/src/adapters <br/>
 But sometimes you want to create your own
 
-### Example
+#### Custom adapter example
 
 ```ts
 import { PgTrxOutbox } from 'pg-trx-outbox'
@@ -221,6 +221,16 @@ class MyOwnAdapter implements Adapter {
   async send(messages) {
     // messages handling here
     // need return responses array for each message in appropriate order
+    
+    // parallel example
+    return Promise.allSettled(messages.map(async m => { /* message handler with response */ }))
+    
+    // serial example
+    const resp = [];
+    for (const message of messages) {
+      resp.push(await pReflect(/* [3] some message handler */))
+    }
+    return resp;
   },
 }
 
@@ -241,13 +251,14 @@ await pgTrxOutbox.stop();
 
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [3] https://github.com/sindresorhus/p-reflect
 
 ## Wait response of specific message
 
 It's possible to wait response of specific message handling<br/>
 Short polling algorithm will be used for this purpose now (maybe in future `notify` and `logical` will be implemented too)
 
-### Example
+#### Wait response example
 
 ```ts
 import { PgTrxOutbox } from 'pg-trx-outbox'
@@ -282,6 +293,90 @@ try {
 // on shutdown
 
 await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
+## Partitioning
+
+Over time, performance of one table `pg_trx_outbox` can be not enough.
+Also, handling messages throughput can be not enough too.
+In this cases native PostgreSQL partitioning can help and **pg-trx-outbox** supports it.
+Implementation inspired by Kafka key partitioning mechanism.
+
+#### Partitioning example
+
+##### SQL migration
+
+```sql
+CREATE TABLE pg_trx_outbox (
+  id bigserial NOT NULL,
+  processed bool NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  topic text NOT NULL,
+  "key" text NULL,
+  value jsonb NULL,
+  "partition" int2 NULL,
+  "timestamp" int8 NULL,
+  headers jsonb NULL,
+  response jsonb NULL,
+  error text NULL,
+  CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id, key)
+) PARTITION BY HASH (key);
+
+CREATE TABLE pg_trx_outbox_0 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 0);
+CREATE TABLE pg_trx_outbox_1 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 1);
+CREATE TABLE pg_trx_outbox_2 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 2);
+```
+
+##### Code
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+
+const pgTrxOutbox0 = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnOrBuiltInAdapter(),
+  outboxOptions: {
+    partition: 0 // this istance of `PgTrxOutbox` will handle only `0` partition
+    /* [2] */
+  }
+});
+const pgTrxOutbox1 = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnOrBuiltInAdapter(),
+  outboxOptions: {
+    partition: 1 // this instance of `PgTrxOutbox` will handle only `1` partition
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox0.start();
+await pgTrxOutbox1.start();
+
+const [{ id } = { id: '' }] = await pg
+  .query<{ id: string }>(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('some.topic', 'someKey', '{"someValue": true}')
+      RETURNING id;
+    `
+  )
+  .then(resp => resp.rows)
+
+try {
+  // waitResponse can handle response from any partition
+  const waitResp = await pgKafkaTrxOutbox0.waitResponse<{someValue: boolean}>(id)
+} catch(e) {
+  // if error will be happens on message handling
+}
+
+// on shutdown
+
+await pgTrxOutbox0.stop();
+await pgTrxOutbox1.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
