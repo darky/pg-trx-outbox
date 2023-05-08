@@ -285,7 +285,7 @@ const [{ id } = { id: '' }] = await pg
   .then(resp => resp.rows)
 
 try {
-  const waitResp = await pgKafkaTrxOutbox.waitResponse<{someValue: boolean}>(id)
+  const waitResp = await pgTrxOutbox.waitResponse<{someValue: boolean}>(id)
 } catch(e) {
   // if error will be happens on message handling
 }
@@ -369,7 +369,7 @@ const [{ id } = { id: '' }] = await pg
 try {
   // waitResponse can handle response from any partition
   // key passing will prune unnecessary partitions
-  const waitResp = await pgKafkaTrxOutbox0.waitResponse<{someValue: boolean}>(id, 'someKey')
+  const waitResp = await pgTrxOutbox0.waitResponse<{someValue: boolean}>(id, 'someKey')
 } catch(e) {
   // if error will be happens on message handling
 }
