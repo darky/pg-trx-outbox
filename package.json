@@ -32,13 +32,13 @@
   "dependencies": {
     "pg": "^8.10.0",
     "robot3": "^0.4.0",
-    "ts-pattern": "^4.2.2"
+    "ts-pattern": "^4.2.3"
   },
   "devDependencies": {
-    "@types/node": "^18.15.13",
+    "@types/node": "^20.1.0",
     "@types/pg": "^8.6.6",
-    "testcontainers": "^9.5.0",
-    "tsx": "^3.12.6",
+    "testcontainers": "^9.6.0",
+    "tsx": "^3.12.7",
     "typescript": "^5.0.4"
   },
   "optionalDependencies": {
