@@ -13,6 +13,7 @@ export type OutboxMessage = {
   response: unknown
   error: string | null
   context_id: number
+  meta: object | null
   headers: Record<string, string> | null
 }
 
