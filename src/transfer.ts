@@ -19,7 +19,8 @@ export class Transfer {
           responses.map(r => (r.status === 'fulfilled' ? r.value : null)),
           responses.map(r =>
             r.status === 'rejected' ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason : null
-          )
+          ),
+          responses.map(r => r.meta ?? null)
         )
       }
     } catch (e) {
@@ -29,7 +30,8 @@ export class Transfer {
             client,
             messages.map(r => r.id),
             messages.map(() => null),
-            messages.map(() => (e as Error).stack ?? (e as Error).message ?? e)
+            messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+            messages.map(() => null)
           )
         }
         throw e
@@ -57,10 +59,16 @@ export class Transfer {
       .then(resp => resp.rows)
   }
 
-  private async updateToProcessed(client: PoolClient, ids: string[], responses: unknown[], errors: (string | null)[]) {
+  private async updateToProcessed(
+    client: PoolClient,
+    ids: string[],
+    responses: unknown[],
+    errors: (string | null)[],
+    meta: (object | null)[]
+  ) {
     await client.query(
       `
-        with info as (select * from unnest($1::bigint[], $2::jsonb[], $3::text[]) x(id, resp, err))
+        with info as (select * from unnest($1::bigint[], $2::jsonb[], $3::text[], $4::jsonb[]) x(id, resp, err, meta))
         update pg_trx_outbox${
           this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
         } p
@@ -68,10 +76,11 @@ export class Transfer {
           processed = true,
           updated_at = now(),
           response = (select resp from info where info.id = p.id limit 1),
-          error = (select err from info where info.id = p.id limit 1)
+          error = (select err from info where info.id = p.id limit 1),
+          meta = (select meta from info where info.id = p.id limit 1)
         where p.id = any($1)
       `,
-      [ids, responses, errors]
+      [ids, responses, errors, meta]
     )
   }
 }

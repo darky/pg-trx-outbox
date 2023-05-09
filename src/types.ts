@@ -22,7 +22,9 @@ export interface StartStop {
 }
 
 export interface Send {
-  send(messages: readonly OutboxMessage[]): Promise<(PromiseFulfilledResult<unknown> | PromiseRejectedResult)[]>
+  send(
+    messages: readonly OutboxMessage[]
+  ): Promise<((PromiseFulfilledResult<unknown> | PromiseRejectedResult) & { meta?: object })[]>
 }
 
 export type Adapter = StartStop & Send
