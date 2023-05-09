@@ -6,19 +6,24 @@ export abstract class SerialAdapter implements Adapter {
 
   abstract stop(): Promise<void>
 
-  abstract handleMessage(message: OutboxMessage): Promise<unknown>
+  abstract handleMessage(message: OutboxMessage): Promise<{ value: unknown; meta?: object }>
 
   async send(messages: readonly OutboxMessage[]) {
-    const resp: (PromiseFulfilledResult<unknown> | PromiseRejectedResult)[] = []
+    type RespItemType = Awaited<ReturnType<Adapter['send']>>[0]
+    const resp: RespItemType[] = []
     for (const msg of messages) {
       await diInit(async () => {
         diSet('pg_trx_outbox_context_id', msg.context_id)
+        let respItem: RespItemType
+        const before = performance.now()
         try {
-          const value = await this.handleMessage(msg)
-          resp.push({ value, status: 'fulfilled' })
+          const { value, meta } = await this.handleMessage(msg)
+          respItem = { value, status: 'fulfilled', ...(meta ? { meta } : {}) }
         } catch (reason) {
-          resp.push({ reason, status: 'rejected' })
+          respItem = { reason, status: 'rejected' }
         }
+        const time = performance.now() - before
+        resp.push({ ...respItem, meta: { time, ...respItem.meta } })
       })
     }
     return resp
