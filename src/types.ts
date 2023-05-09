@@ -11,7 +11,7 @@ export type OutboxMessage = {
   partition: number | null
   timestamp: string
   response: unknown
-  error: unknown
+  error: string | null
   context_id: number
   headers: Record<string, string> | null
 }
