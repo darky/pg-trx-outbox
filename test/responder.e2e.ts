@@ -40,6 +40,8 @@ beforeEach(async () => {
       headers jsonb NULL,
       response jsonb NULL,
       error text NULL,
+      meta jsonb NULL,
+      context_id double precision NOT NULL DEFAULT random(),
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
