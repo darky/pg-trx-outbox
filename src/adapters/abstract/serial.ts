@@ -1,5 +1,6 @@
 import { diInit, diSet } from 'ts-fp-di'
 import type { Adapter, OutboxMessage } from '../../types'
+import { monitorEventLoopDelay } from 'perf_hooks'
 
 export abstract class SerialAdapter implements Adapter {
   abstract start(): Promise<void>
@@ -15,6 +16,8 @@ export abstract class SerialAdapter implements Adapter {
       await diInit(async () => {
         diSet('pg_trx_outbox_context_id', msg.context_id)
         let respItem: RespItemType
+        const hist = monitorEventLoopDelay()
+        hist.enable()
         const before = performance.now()
         try {
           const { value, meta } = await this.handleMessage(msg)
@@ -23,7 +26,9 @@ export abstract class SerialAdapter implements Adapter {
           respItem = { reason, status: 'rejected' }
         }
         const time = performance.now() - before
-        resp.push({ ...respItem, meta: { time, ...respItem.meta } })
+        hist.disable()
+        const { max, min, mean, stddev } = hist
+        resp.push({ ...respItem, meta: { time, hist: { max, min, mean, stddev }, ...respItem.meta } })
       })
     }
     return resp
