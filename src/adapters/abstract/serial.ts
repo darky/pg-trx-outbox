@@ -1,35 +1,15 @@
-import { diInit, diSet } from 'ts-fp-di'
 import type { Adapter, OutboxMessage } from '../../types'
-import { monitorEventLoopDelay } from 'perf_hooks'
+import { BaseAdapter } from './base'
 
-export abstract class SerialAdapter implements Adapter {
+export abstract class SerialAdapter extends BaseAdapter implements Adapter {
   abstract start(): Promise<void>
 
   abstract stop(): Promise<void>
 
-  abstract handleMessage(message: OutboxMessage): Promise<{ value: unknown; meta?: object }>
-
   async send(messages: readonly OutboxMessage[]) {
-    type RespItemType = Awaited<ReturnType<Adapter['send']>>[0]
-    const resp: RespItemType[] = []
+    const resp: Awaited<ReturnType<typeof this.baseHandleMessage>>[] = []
     for (const msg of messages) {
-      await diInit(async () => {
-        diSet('pg_trx_outbox_context_id', msg.context_id)
-        let respItem: RespItemType
-        const hist = monitorEventLoopDelay()
-        hist.enable()
-        const before = performance.now()
-        try {
-          const { value, meta } = await this.handleMessage(msg)
-          respItem = { value, status: 'fulfilled', ...(meta ? { meta } : {}) }
-        } catch (reason) {
-          respItem = { reason, status: 'rejected' }
-        }
-        const time = performance.now() - before
-        hist.disable()
-        const { max, min, mean, stddev } = hist
-        resp.push({ ...respItem, meta: { time, hist: { max, min, mean, stddev }, ...respItem.meta } })
-      })
+      resp.push(await this.baseHandleMessage(msg))
     }
     return resp
   }
