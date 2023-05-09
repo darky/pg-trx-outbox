@@ -1,3 +1,4 @@
+import { diInit, diSet } from 'ts-fp-di'
 import type { Adapter, OutboxMessage } from '../../types'
 
 export abstract class ParallelAdapter implements Adapter {
@@ -9,8 +10,11 @@ export abstract class ParallelAdapter implements Adapter {
 
   async send(messages: readonly OutboxMessage[]) {
     return Promise.allSettled(
-      messages.map(async m => {
-        return this.handleMessage(m)
+      messages.map(async msg => {
+        return await diInit(async () => {
+          diSet('pg_trx_outbox_context_id', msg.context_id)
+          return await this.handleMessage(msg)
+        })
       })
     )
   }

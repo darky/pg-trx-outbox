@@ -12,6 +12,7 @@ export type OutboxMessage = {
   timestamp: string
   response: unknown
   error: unknown
+  context_id: number
   headers: Record<string, string> | null
 }
 

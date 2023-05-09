@@ -7,6 +7,7 @@ import { Logical } from './logical'
 import { P, match } from 'ts-pattern'
 import { Pg } from './pg'
 import { Responder } from './responder'
+import { diDep } from 'ts-fp-di'
 
 export class PgTrxOutbox implements StartStop {
   private pg: Pg
@@ -62,5 +63,9 @@ export class PgTrxOutbox implements StartStop {
 
   async waitResponse<T>(id: string, key?: string) {
     return this.responder.waitResponse(id, key) as T
+  }
+
+  contextId() {
+    return diDep<number>('pg_trx_outbox_context_id')
   }
 }
