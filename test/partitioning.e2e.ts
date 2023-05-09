@@ -48,27 +48,6 @@ beforeEach(async () => {
   await pg.query(`CREATE TABLE pg_trx_outbox_0 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 0);`)
   await pg.query(`CREATE TABLE pg_trx_outbox_1 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 1);`)
   await pg.query(`CREATE TABLE pg_trx_outbox_2 PARTITION OF pg_trx_outbox FOR VALUES WITH (MODULUS 3, REMAINDER 2);`)
-  await pg.query(`
-    CREATE OR REPLACE FUNCTION pg_trx_outbox() RETURNS trigger AS $trigger$
-      BEGIN
-        PERFORM pg_notify('pg_trx_outbox', '{}');
-        RETURN NEW;
-      END;
-    $trigger$ LANGUAGE plpgsql;
-  `)
-  await pg.query(`DROP TRIGGER IF EXISTS pg_trx_outbox ON pg_trx_outbox;`)
-  await pg.query(`
-    CREATE TRIGGER pg_trx_outbox AFTER INSERT ON pg_trx_outbox
-    EXECUTE PROCEDURE pg_trx_outbox();
-  `)
-  await pg.query(`
-    DROP PUBLICATION IF EXISTS pg_trx_outbox
-  `)
-  try {
-    await pg.query(`
-      SELECT pg_drop_replication_slot('pg_trx_outbox')
-    `)
-  } catch (e) {}
 })
 
 afterEach(async () => {
