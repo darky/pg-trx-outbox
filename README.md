@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   headers jsonb NULL,
   response jsonb NULL,
   error text NULL,
+  meta jsonb NULL,
+  context_id double precision NOT NULL DEFAULT random(),
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
 );
 
@@ -220,17 +222,17 @@ class MyOwnAdapter implements Adapter {
   
   async send(messages) {
     // messages handling here
-    // need return responses array for each message in appropriate order
+    // need return Promise.allSettled compatible array for each message in appropriate order
     
-    // parallel example
-    return Promise.allSettled(messages.map(async m => { /* message handler with response */ }))
-    
-    // serial example
-    const resp = [];
-    for (const message of messages) {
-      resp.push(await pReflect(/* [3] some message handler */))
-    }
-    return resp;
+    return [
+      // example of successful message handling
+      { value: {someResponse: true}, status: 'fulfilled' },
+      // example of exception while message handling
+      { reason: 'some error text', status: 'rejected' },
+      // Optional meta property can be returned
+      // which will be saved in appropriate DB column
+      { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
+    ]
   },
 }
 
@@ -251,7 +253,155 @@ await pgTrxOutbox.stop();
 
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
-- [3] https://github.com/sindresorhus/p-reflect
+
+#### Built-in adapters for message handling order
+
+##### SerialAdapter example
+
+`SerialAdapter` can be used for handling messages of batch serially, step by step
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { SerialAdapter } from 'pg-trx-outbox/dist/src/adapters/abstract/serial'
+
+class MyOwnAdapter extends SerialAdapter {
+  async start() {
+    // some init logic here, establish connection and so on
+  },
+  
+  async stop() {
+    // some graceful shutdown logic here, close connection and so on
+  },
+  
+  async handleMessage(message) {
+    // serial messages handling here, step by step
+    
+    // example of successful message handling
+    return { value: {someResponse: true}, status: 'fulfilled' },
+    // example of exception while message handling
+    return { reason: 'some error text', status: 'rejected' },
+    // Optional meta property can be returned
+    // which will be saved in appropriate DB column
+    return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
+  },
+}
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(),
+  outboxOptions: {
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
+##### ParallelAdapter example
+
+`ParallelAdapter` can be used for handling messages in parallel independently of each other
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { ParallelAdapter } from 'pg-trx-outbox/dist/src/adapters/abstract/parallel'
+
+class MyOwnAdapter extends ParallelAdapter {
+  async start() {
+    // some init logic here, establish connection and so on
+  },
+  
+  async stop() {
+    // some graceful shutdown logic here, close connection and so on
+  },
+  
+  async handleMessage(message) {
+    // parallel messages handling here
+    
+    // example of successful message handling
+    return { value: {someResponse: true}, status: 'fulfilled' },
+    // example of exception while message handling
+    return { reason: 'some error text', status: 'rejected' },
+    // Optional meta property can be returned
+    // which will be saved in appropriate DB column
+    return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
+  },
+}
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(),
+  outboxOptions: {
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
+
+##### GroupedAdapter example
+
+`GroupedAdapter` is combination of `SerialAdapter` and `ParallelAdapter`
+Messages with same `key` will be handled serially, step by step. 
+But messages with different `key` will be handled in parallel
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { GroupedAdapter } from 'pg-trx-outbox/dist/src/adapters/abstract/grouped'
+
+class MyOwnAdapter extends GroupedAdapter {
+  async start() {
+    // some init logic here, establish connection and so on
+  },
+  
+  async stop() {
+    // some graceful shutdown logic here, close connection and so on
+  },
+  
+  async handleMessage(message) {
+    // grouped by `key` message handling here
+    
+    // example of successful message handling
+    return { value: {someResponse: true}, status: 'fulfilled' },
+    // example of exception while message handling
+    return { reason: 'some error text', status: 'rejected' },
+    // Optional meta property can be returned
+    // which will be saved in appropriate DB column
+    return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
+  },
+}
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(),
+  outboxOptions: {
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
 
 ## Wait response of specific message
 
@@ -323,6 +473,8 @@ CREATE TABLE pg_trx_outbox (
   headers jsonb NULL,
   response jsonb NULL,
   error text NULL,
+  meta jsonb NULL,
+  context_id double precision NOT NULL DEFAULT random(),
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id, key)
 ) PARTITION BY HASH (key);
 
@@ -382,3 +534,69 @@ await pgTrxOutbox1.stop();
 
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
+## Built-in messages meta
+
+In *Custom adapter* section you already see, that `meta` field can be returned in message handling
+and implicitly will be saved in DB in appropriate column. Also **pg-trx-outbox** provide some built-in `meta`,
+which will be persisted with using of `SerialAdapter`, `ParallelAdapter` or `GroupedAdapter`:
+
+```js
+{
+  pgTrxOutbox: {
+    time: 1.343434, // time of message handling execution, high-precision count of milliseconds
+    libuv: { /* [1] */ } // contains libuv metrics for detecting CPU stucks
+  }
+}
+```
+
+- [1] https://nodejs.org/dist/latest-v20.x/docs/api/perf_hooks.html#class-histogram
+
+## Context id
+
+Very useful to link chain of messages handling with through `contextId`<br/>
+More info about pattern: https://microservices.io/patterns/observability/distributed-tracing.html <br/>
+Using `SerialAdapter`, `ParallelAdapter` or `GroupedAdapter` very easy to extract `contextId` of current handled message and pass it futher:
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { SerialAdapter } from 'pg-trx-outbox/dist/src/adapters/abstract/serial'
+
+class MyOwnAdapter extends SerialAdapter {
+  async start() {
+    // some init logic here, establish connection and so on
+  },
+  
+  async stop() {
+    // some graceful shutdown logic here, close connection and so on
+  },
+  
+  async handleMessage(message) {
+    // `contextId` can be extracted in any place of async stack and passed to futher
+    // AsyncLocalStorage will used for this purpose [3]
+    // `pg` is hypothetical object of your code, which means PostgreSQL client
+    await pg.query(`
+      insert into pg_trx_outbox (topic, "key", value, context_id)
+      values ('some.topic', 'key', '{"someValue": true}', $1)
+    `, [pgTrxOutbox.contextId()])
+  },
+}
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(),
+  outboxOptions: {
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [3] https://nodejs.org/dist/latest-v20.x/docs/api/async_context.html#class-asynclocalstorage
