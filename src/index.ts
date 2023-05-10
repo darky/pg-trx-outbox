@@ -7,7 +7,7 @@ import { Logical } from './logical'
 import { P, match } from 'ts-pattern'
 import { Pg } from './pg'
 import { Responder } from './responder'
-import { diDep } from 'ts-fp-di'
+import { diDep, diExists } from 'ts-fp-di'
 
 export class PgTrxOutbox implements StartStop {
   private pg: Pg
@@ -66,6 +66,6 @@ export class PgTrxOutbox implements StartStop {
   }
 
   contextId() {
-    return diDep<number>('pg_trx_outbox_context_id')
+    return diExists() ? diDep<number>('pg_trx_outbox_context_id') : null
   }
 }

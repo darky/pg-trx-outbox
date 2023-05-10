@@ -97,7 +97,7 @@ test('extract contextId from context works', async () => {
       async start() {}
       async stop() {}
       async handleMessage() {
-        contextId = pgKafkaTrxOutbox.contextId()
+        contextId = pgKafkaTrxOutbox.contextId()!
         return { value: { ok: true } }
       }
     })(),
@@ -124,4 +124,28 @@ test('extract contextId from context works', async () => {
   await setTimeout(1000)
 
   assert.strictEqual(contextId > 0, true)
+})
+
+test('contextId returns null outside of context', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: new (class extends SerialAdapter {
+      async start() {}
+      async stop() {}
+      async handleMessage() {
+        return { value: { ok: true } }
+      }
+    })(),
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  assert.strictEqual(pgKafkaTrxOutbox.contextId(), null)
 })
