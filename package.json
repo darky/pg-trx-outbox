@@ -24,8 +24,8 @@
     "url": "git@github.com:darky/pg-trx-outbox.git"
   },
   "files": [
-    "dist/src/*.js",
-    "dist/src/*.d.ts"
+    "dist/src/**/*.js",
+    "dist/src/**/*.d.ts"
   ],
   "author": "Vladislav Botvin",
   "license": "MIT",
