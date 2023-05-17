@@ -49,12 +49,15 @@ export class Transfer {
           select * from pg_trx_outbox${
             this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
           }
-          where processed = false
+          where processed = false ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''}
           order by id
           limit $1
           for update nowait
         `,
-        [this.options.outboxOptions?.limit ?? 50]
+        [
+          this.options.outboxOptions?.limit ?? 50,
+          ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
+        ]
       )
       .then(resp => resp.rows)
   }

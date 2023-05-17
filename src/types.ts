@@ -59,5 +59,9 @@ export type Options = {
      * For scaling by partitions, pass partition number 0..n
      */
     partition?: number
+    /**
+     * Array of topics, which should be handled only
+     */
+    topicFilter?: string[]
   }
 }
