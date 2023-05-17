@@ -600,3 +600,50 @@ await pgTrxOutbox.stop();
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
 - [3] https://nodejs.org/dist/latest-v20.x/docs/api/async_context.html#class-asynclocalstorage
+
+## Filter messages handling by topic
+
+Messages handling can be filtered by topic. 
+It's useful, when you have multiple microservices with one shared DB 
+and each microservice should handle specific bunch of messages filtered by topic.
+
+##### More optimized index for not processed messages
+
+```sql
+CREATE INDEX pg_trx_outbox_not_processed_idx
+  ON pg_trx_outbox (processed, topic, id)
+  WHERE (processed = false);
+```
+
+##### Topics filter example
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnOrBuiltInAdapter(),
+  outboxOptions: {
+    topicFilter: ['for.handle'] // Array of topics, which should be handled only
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+await pg
+  .query<{ id: string }>(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('for.handle', 'someKey', '{"someValue": true}'), -- this message will be handled
+        ('not.for.handle', 'someKey', '{"someValue": true}') -- this message not will be handled
+    `
+  )
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
