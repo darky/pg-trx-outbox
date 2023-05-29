@@ -6,6 +6,7 @@ import assert from 'node:assert'
 import { OutboxMessage } from '../src/types'
 import { setTimeout } from 'timers/promises'
 import { SerialAdapter } from '../src/adapters/abstract/serial'
+import { diInit } from 'ts-fp-di'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
@@ -148,4 +149,30 @@ test('contextId returns null outside of context', async () => {
   })
   await pgKafkaTrxOutbox.start()
   assert.strictEqual(pgKafkaTrxOutbox.contextId(), null)
+})
+
+test('contextId returns null in context, but outside of message handler', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: new (class extends SerialAdapter {
+      async start() {}
+      async stop() {}
+      async handleMessage() {
+        return { value: { ok: true } }
+      }
+    })(),
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await diInit(async () => {
+    assert.strictEqual(pgKafkaTrxOutbox.contextId(), null)
+  })
 })
