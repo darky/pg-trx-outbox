@@ -49,7 +49,9 @@ export class Transfer {
           select * from pg_trx_outbox${
             this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
           }
-          where processed = false ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''}
+          where processed = false and (since_at is null or now() > since_at) ${
+            this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''
+          }
           order by id
           limit $1
           for update nowait

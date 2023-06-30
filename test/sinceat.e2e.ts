@@ -54,48 +54,13 @@ afterEach(async () => {
   await pg.end()
 })
 
-test('meta response works', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
-    adapter: {
-      async start() {},
-      async stop() {},
-      async send() {
-        return [{ meta: { metaWorks: true }, value: {}, status: 'fulfilled' }]
-      },
-    },
-    pgOptions: {
-      host: pgDocker.getHost(),
-      port: pgDocker.getPort(),
-      user: pgDocker.getUsername(),
-      password: pgDocker.getPassword(),
-      database: pgDocker.getDatabase(),
-    },
-    outboxOptions: {
-      pollInterval: 300,
-    },
-  })
-  await pgKafkaTrxOutbox.start()
-  await pg.query(
-    `
-      INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
-    `
-  )
-  await setTimeout(1000)
-
-  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
-
-  assert.deepEqual(resp[0]?.meta, { metaWorks: true })
-})
-
-test('built-in meta works', async () => {
+test('basic since_at check', async () => {
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
       async handleMessage() {
-        return { value: { ok: true }, meta: { response: true } }
+        return { value: { ok: true } }
       }
     })(),
     pgOptions: {
@@ -112,23 +77,18 @@ test('built-in meta works', async () => {
   await pgKafkaTrxOutbox.start()
   await pg.query(
     `
-      INSERT INTO pg_trx_outbox (topic, "key", value)
+      INSERT INTO pg_trx_outbox (topic, "key", value, since_at)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
+        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', null),
+        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', now() - interval '1 minute'),
+        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', now() + interval '1 minute')
     `
   )
   await setTimeout(1000)
 
   const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
-  const meta = resp[0]?.meta as {
-    response: true
-    pgTrxOutbox: { time: number; libuv: { max: number; min: number; stddev: number; mean: number } }
-  }
 
-  assert.strictEqual(meta.response, true)
-  assert.strictEqual(typeof meta.pgTrxOutbox.time, 'number')
-  assert.strictEqual(typeof meta.pgTrxOutbox.libuv.max, 'number')
-  assert.strictEqual(typeof meta.pgTrxOutbox.libuv.min, 'number')
-  assert.strictEqual(typeof meta.pgTrxOutbox.libuv.stddev === 'number' || meta.pgTrxOutbox.libuv.stddev === null, true)
-  assert.strictEqual(typeof meta.pgTrxOutbox.libuv.mean === 'number' || meta.pgTrxOutbox.libuv.mean === null, true)
+  assert.strictEqual(resp[0]?.processed, true)
+  assert.strictEqual(resp[1]?.processed, true)
+  assert.strictEqual(resp[2]?.processed, false)
 })

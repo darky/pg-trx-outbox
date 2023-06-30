@@ -32,6 +32,7 @@ beforeEach(async () => {
       processed bool NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
+      since_at timestamptz NULL,
       topic text NOT NULL,
       "key" text NULL,
       value jsonb NULL,
