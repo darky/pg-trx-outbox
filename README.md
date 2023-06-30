@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   processed bool NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  since_at timestamptz,
   topic text NOT NULL,
   "key" text NULL,
   value jsonb NULL,
@@ -465,6 +466,7 @@ CREATE TABLE pg_trx_outbox (
   processed bool NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  since_at timestamptz,
   topic text NOT NULL,
   "key" text NULL,
   value jsonb NULL,
@@ -647,3 +649,41 @@ await pgTrxOutbox.stop();
 
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
+## Scheduling of messages
+
+Messages can be delayed and handled at some time in future
+
+##### Messages scheduling example
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnOrBuiltInAdapter(),
+  outboxOptions: {
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+await pg
+  .query<{ id: string }>(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value, since_at)
+      VALUES ('for.handle', 'someKey', '{"someValue": true}', now() + interval '1 hour'), -- this message will be handled since 1 hour
+        ('not.for.handle', 'someKey', '{"someValue": true}', null), -- this message not will be handled ASAP
+        ('not.for.handle', 'someKey', '{"someValue": true}', now() - interval '1 hour'), -- this message not will be handled ASAP
+    `
+  )
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+
