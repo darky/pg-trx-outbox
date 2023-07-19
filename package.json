@@ -30,17 +30,17 @@
   "author": "Vladislav Botvin",
   "license": "MIT",
   "dependencies": {
-    "pg": "^8.11.0",
+    "pg": "^8.11.1",
     "robot3": "^0.4.0",
-    "ts-pattern": "^4.3.0"
+    "ts-pattern": "^5.0.3"
   },
   "devDependencies": {
-    "@types/node": "^20.2.5",
-    "@types/pg": "^8.10.1",
-    "testcontainers": "^9.8.0",
-    "ts-fp-di": "^0.12.0",
+    "@types/node": "^20.4.2",
+    "@types/pg": "^8.10.2",
+    "testcontainers": "^9.11.0",
+    "ts-fp-di": "^0.13.0",
     "tsx": "^3.12.7",
-    "typescript": "^5.0.4"
+    "typescript": "^5.1.6"
   },
   "optionalDependencies": {
     "dataloader": "^2.2.2",
