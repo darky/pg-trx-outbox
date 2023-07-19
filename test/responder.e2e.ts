@@ -161,3 +161,80 @@ test('Adapter.send should satisfy Promise.allSettled', async () => {
   assert.strictEqual(resp[1]?.response, null)
   assert.strictEqual(resp[1]?.error, 'err')
 })
+
+test('should work with string response (JSONB error)', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send(messages) {
+        return Promise.allSettled(messages.map(() => 'string'))
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+    `
+  )
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+  assert.strictEqual((resp[0]?.response as { r: string }).r, 'string')
+  assert.strictEqual(resp[0]?.error, null)
+  assert.strictEqual((resp[1]?.response as { r: string }).r, 'string')
+  assert.strictEqual(resp[1]?.error, null)
+})
+
+test('should work with array response (JSONB error)', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return [
+          { value: [1], status: 'fulfilled' },
+          { value: [1], status: 'fulfilled' },
+        ]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+    `
+  )
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+  assert.deepEqual((resp[0]?.response as { r: [1] }).r, [1])
+  assert.strictEqual(resp[0]?.error, null)
+  assert.deepEqual((resp[1]?.response as { r: [1] }).r, [1])
+  assert.strictEqual(resp[1]?.error, null)
+})
