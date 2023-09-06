@@ -63,5 +63,9 @@ export type Options = {
      * Array of topics, which should be handled only
      */
     topicFilter?: string[]
+    /**
+     * predicate for error retrying
+     */
+    retryError?: (err: Error) => boolean
   }
 }

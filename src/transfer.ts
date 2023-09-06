@@ -26,7 +26,8 @@ export class Transfer {
           responses.map(r =>
             r.status === 'rejected' ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason : null
           ),
-          responses.map(r => r.meta ?? null)
+          responses.map(r => r.meta ?? null),
+          responses.map(r => r.status === 'fulfilled' || !!this.options.outboxOptions?.retryError?.(r.reason as Error))
         )
       }
     } catch (e) {
@@ -37,7 +38,8 @@ export class Transfer {
             messages.map(r => r.id),
             messages.map(() => null),
             messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
-            messages.map(() => null)
+            messages.map(() => null),
+            messages.map(() => true)
           )
         }
         throw e
@@ -75,23 +77,25 @@ export class Transfer {
     ids: string[],
     responses: unknown[],
     errors: (string | null)[],
-    meta: (object | null)[]
+    meta: (object | null)[],
+    done: boolean[]
   ) {
     await client.query(
       `
-        with info as (select * from unnest($1::bigint[], $2::jsonb[], $3::text[], $4::jsonb[]) x(id, resp, err, meta))
+        with info as (
+          select * from unnest($1::bigint[], $2::jsonb[], $3::text[], $4::jsonb[], $5::boolean[]) x(id, resp, err, meta, done))
         update pg_trx_outbox${
           this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
         } p
         set
-          processed = true,
+          processed = (select done from info where info.id = p.id limit 1),
           updated_at = now(),
           response = (select resp from info where info.id = p.id limit 1),
           error = (select err from info where info.id = p.id limit 1),
           meta = (select meta from info where info.id = p.id limit 1)
         where p.id = any($1)
       `,
-      [ids, responses, errors, meta]
+      [ids, responses, errors, meta, done]
     )
   }
 }
