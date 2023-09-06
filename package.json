@@ -35,17 +35,19 @@
     "ts-pattern": "^5.0.3"
   },
   "devDependencies": {
-    "@types/node": "^20.4.2",
+    "@testcontainers/kafka": "^10.2.1",
+    "@testcontainers/postgresql": "^10.2.1",
+    "@types/node": "^20.5.9",
     "@types/pg": "^8.10.2",
-    "testcontainers": "^9.11.0",
+    "testcontainers": "^10.2.1",
     "ts-fp-di": "^0.13.0",
-    "tsx": "^3.12.7",
-    "typescript": "^5.1.6"
+    "tsx": "^3.12.8",
+    "typescript": "^5.2.2"
   },
   "optionalDependencies": {
     "dataloader": "^2.2.2",
     "kafkajs": "^2.2.4",
-    "p-queue": "^7.3.4",
+    "p-queue": "^7.4.1",
     "pg-listen": "^1.7.0",
     "pg-logical-replication": "^2.0.3"
   }

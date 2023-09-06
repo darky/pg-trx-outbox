@@ -18,7 +18,7 @@ export class Responder implements StartStop {
     }),
     () => {}
   )
-  private timer?: NodeJS.Timer
+  private timer?: NodeJS.Timeout
   private waitResponsesMap = new Map<
     string,
     { resolve: (value: unknown) => void; reject: (reason?: unknown) => void; key?: string | void }

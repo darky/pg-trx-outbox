@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, test } from 'node:test'
 import { PgTrxOutbox } from '../src'
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from 'testcontainers'
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Client } from 'pg'
 import assert from 'node:assert'
 import { OutboxMessage } from '../src/types'

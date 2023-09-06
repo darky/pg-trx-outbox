@@ -2,7 +2,7 @@ import type { Options, StartStop } from './types'
 import type { FSM } from './fsm'
 
 export class Poller implements StartStop {
-  private pollTimer?: NodeJS.Timer
+  private pollTimer?: NodeJS.Timeout
 
   constructor(private options: Options, private fsm: FSM) {}
 
