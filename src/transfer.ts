@@ -27,10 +27,12 @@ export class Transfer {
             r.status === 'rejected' ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason : null
           ),
           responses.map(r => r.meta ?? null),
-          responses.map(r =>
-            r.status === 'fulfilled' || this.options.outboxOptions?.retryError
-              ? !this.options.outboxOptions?.retryError?.((r as PromiseRejectedResult).reason as Error)
-              : true
+          responses.map(
+            r =>
+              r.status === 'fulfilled' ||
+              (this.options.outboxOptions?.retryError
+                ? !this.options.outboxOptions?.retryError?.((r as PromiseRejectedResult).reason as Error)
+                : true)
           )
         )
       }
@@ -95,7 +97,7 @@ export class Transfer {
           processed = (select done from info where info.id = p.id limit 1),
           updated_at = now(),
           response = (select resp from info where info.id = p.id limit 1),
-          error = (select err from info where info.id = p.id limit 1),
+          error = coalesce((select err from info where info.id = p.id limit 1), p.error),
           meta = (select meta from info where info.id = p.id limit 1)
         where p.id = any($1)
       `,

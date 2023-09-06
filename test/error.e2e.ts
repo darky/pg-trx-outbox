@@ -215,3 +215,51 @@ test('on not retry error is processed', async () => {
   assert.strictEqual(processedRow.response, null)
   assert.match(processedRow.error, /Error: test err/)
 })
+
+test('preserve error after retry', async () => {
+  const resps = [
+    { reason: new Error('test err'), status: 'rejected' } as PromiseRejectedResult,
+    { status: 'fulfilled' as const, value: { ok: true } } as PromiseFulfilledResult<{ ok: true }>,
+  ]
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return [resps.shift()!]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      retryError() {
+        return true
+      },
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: { ok: true }
+    error: string
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, true)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response.ok, true)
+  assert.match(processedRow.error, /Error: test err/)
+})
