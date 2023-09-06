@@ -61,7 +61,7 @@ test('basic topicFilter works', async () => {
       async stop() {},
       async send(messages) {
         messages.forEach(m => handled.push(m))
-        return []
+        return [{ status: 'fulfilled', value: 1 }]
       },
     },
     pgOptions: {

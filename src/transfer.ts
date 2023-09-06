@@ -27,7 +27,11 @@ export class Transfer {
             r.status === 'rejected' ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason : null
           ),
           responses.map(r => r.meta ?? null),
-          responses.map(r => r.status === 'fulfilled' || !!this.options.outboxOptions?.retryError?.(r.reason as Error))
+          responses.map(r =>
+            r.status === 'fulfilled' || this.options.outboxOptions?.retryError
+              ? !this.options.outboxOptions?.retryError?.((r as PromiseRejectedResult).reason as Error)
+              : true
+          )
         )
       }
     } catch (e) {

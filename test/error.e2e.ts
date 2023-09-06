@@ -125,3 +125,93 @@ test('onError callback', async () => {
 
   assert.match(err.message, /relation "pg_trx_outbox" does not exist/)
 })
+
+test('on retry error not processed', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return [{ reason: new Error('test err'), status: 'rejected' }]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      retryError(err) {
+        assert.strictEqual(err.message, 'test err')
+        return true
+      },
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, false)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response, null)
+  assert.match(processedRow.error, /Error: test err/)
+})
+
+test('on not retry error is processed', async () => {
+  pgKafkaTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async send() {
+        return [{ reason: new Error('test err'), status: 'rejected' }]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      retryError(err) {
+        assert.strictEqual(err.message, 'test err')
+        return false
+      },
+      pollInterval: 300,
+    },
+  })
+  await pgKafkaTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, true)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response, null)
+  assert.match(processedRow.error, /Error: test err/)
+})
