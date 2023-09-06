@@ -687,3 +687,40 @@ await pgTrxOutbox.stop();
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
 
+## Retrying of errors
+
+Messages can be retried via predicate
+
+##### Retrying of errors example
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnOrBuiltInAdapter(),
+  outboxOptions: {
+    retryError(err) {
+      // return true for retrying
+    }
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+await pg
+  .query<{ id: string }>(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES ('for.handle', 'someKey', '{"someValue": true}')
+    `
+  )
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
