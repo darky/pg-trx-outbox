@@ -15,6 +15,8 @@ export type OutboxMessage = {
   context_id: number
   meta: object | null
   headers: Record<string, string> | null
+  attempts: number
+  since_at: Date | null
 }
 
 export interface StartStop {
@@ -67,5 +69,13 @@ export type Options = {
      * predicate for error retrying
      */
     retryError?: (err: Error) => boolean
+    /**
+     * retrying delay in seconds, default 5 seconds
+     */
+    retryDelay?: number
+    /**
+     * max attempts for retry, default 5
+     */
+    retryMaxAttempts?: number
   }
 }

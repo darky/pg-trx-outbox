@@ -42,6 +42,7 @@ beforeEach(async () => {
       error text NULL,
       meta jsonb NULL,
       context_id double precision NOT NULL DEFAULT random(),
+      attempts smallint NOT NULL DEFAULT 0,
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
@@ -240,6 +241,7 @@ test('preserve error after retry', async () => {
       retryError() {
         return true
       },
+      retryDelay: 0,
       pollInterval: 300,
     },
   })
