@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   error text NULL,
   meta jsonb NULL,
   context_id double precision NOT NULL DEFAULT random(),
+  attempts smallint NOT NULL DEFAULT 0,
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
 );
 
@@ -477,6 +478,7 @@ CREATE TABLE pg_trx_outbox (
   error text NULL,
   meta jsonb NULL,
   context_id double precision NOT NULL DEFAULT random(),
+  attempts smallint NOT NULL DEFAULT 0,
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id, key)
 ) PARTITION BY HASH (key);
 
