@@ -702,7 +702,9 @@ const pgTrxOutbox = new PgTrxOutbox({
   outboxOptions: {
     retryError(err) {
       // return true for retrying
-    }
+    },
+    retryDelay: 5, // delay of retry in seconds, default is 5
+    retryMaxAttempts: 5 // max attempts for retry, default is 5
     /* [2] */
   }
 });
