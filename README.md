@@ -549,12 +549,17 @@ which will be persisted with using of `SerialAdapter`, `ParallelAdapter` or `Gro
 {
   pgTrxOutbox: {
     time: 1.343434, // time of message handling execution, high-precision count of milliseconds
-    libuv: { /* [1] */ } // contains libuv metrics for detecting CPU stucks
+    libuv: { /* [1] */ }, // contains libuv metrics for detecting CPU stucks
+    beforeMemory: { /* [2] */ }, // memory usage before event
+    afterMemory: { /* [2] */ }, // memory usage after event
+    uptime: 100 // [3] uptime of process
   }
 }
 ```
 
 - [1] https://nodejs.org/dist/latest-v20.x/docs/api/perf_hooks.html#class-histogram
+- [2] https://nodejs.org/dist/latest-v20.x/docs/api/process.html#processmemoryusage
+- [3] https://nodejs.org/dist/latest-v20.x/docs/api/process.html#processuptime
 
 ## Context id
 
