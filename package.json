@@ -36,13 +36,13 @@
     "ts-pattern": "^5.0.3"
   },
   "devDependencies": {
-    "@testcontainers/kafka": "^10.2.1",
-    "@testcontainers/postgresql": "^10.2.1",
-    "@types/node": "^20.5.9",
-    "@types/pg": "^8.10.2",
-    "testcontainers": "^10.2.1",
-    "ts-fp-di": "^0.13.0",
-    "tsx": "^3.12.8",
+    "@testcontainers/kafka": "^10.2.2",
+    "@testcontainers/postgresql": "^10.2.2",
+    "@types/node": "^20.9.0",
+    "@types/pg": "^8.10.9",
+    "testcontainers": "^10.2.2",
+    "ts-fp-di": "^0.18.0",
+    "tsx": "^4.1.2",
     "typescript": "^5.2.2"
   },
   "optionalDependencies": {
