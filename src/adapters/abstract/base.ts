@@ -11,12 +11,14 @@ export abstract class BaseAdapter {
       hist.enable()
       const now = performance.now()
       const beforeMemory = process.memoryUsage()
+      const oldCpuUsage = process.cpuUsage()
       try {
         const { value, meta } = await this.handleMessage(message)
         respItem = { value, status: 'fulfilled', ...(meta ? { meta } : {}) }
       } catch (reason) {
         respItem = { reason, status: 'rejected' }
       }
+      const cpuUsage = process.cpuUsage(oldCpuUsage)
       const afterMemory = process.memoryUsage()
       const time = performance.now() - now
       hist.disable()
@@ -27,6 +29,7 @@ export abstract class BaseAdapter {
         beforeMemory,
         afterMemory,
         uptime: process.uptime(),
+        cpuUsage,
       }
       return { ...respItem, meta: { pgTrxOutbox, ...respItem.meta } }
     })

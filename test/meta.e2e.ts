@@ -129,6 +129,7 @@ test('built-in meta works', async () => {
       beforeMemory: NodeJS.MemoryUsage
       afterMemory: NodeJS.MemoryUsage
       uptime: number
+      cpuUsage: NodeJS.CpuUsage
     }
   }
 
@@ -141,4 +142,6 @@ test('built-in meta works', async () => {
   assert.strictEqual(typeof meta.pgTrxOutbox.beforeMemory.heapTotal, 'number')
   assert.strictEqual(typeof meta.pgTrxOutbox.afterMemory.heapTotal, 'number')
   assert.strictEqual(typeof meta.pgTrxOutbox.uptime, 'number')
+  assert.strictEqual(typeof meta.pgTrxOutbox.cpuUsage.system, 'number')
+  assert.strictEqual(typeof meta.pgTrxOutbox.cpuUsage.user, 'number')
 })
