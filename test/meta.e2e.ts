@@ -123,7 +123,13 @@ test('built-in meta works', async () => {
   const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
   const meta = resp[0]?.meta as {
     response: true
-    pgTrxOutbox: { time: number; libuv: { max: number; min: number; stddev: number; mean: number } }
+    pgTrxOutbox: {
+      time: number
+      libuv: { max: number; min: number; stddev: number; mean: number }
+      beforeMemory: NodeJS.MemoryUsage
+      afterMemory: NodeJS.MemoryUsage
+      uptime: number
+    }
   }
 
   assert.strictEqual(meta.response, true)
@@ -132,4 +138,7 @@ test('built-in meta works', async () => {
   assert.strictEqual(typeof meta.pgTrxOutbox.libuv.min, 'number')
   assert.strictEqual(typeof meta.pgTrxOutbox.libuv.stddev === 'number' || meta.pgTrxOutbox.libuv.stddev === null, true)
   assert.strictEqual(typeof meta.pgTrxOutbox.libuv.mean === 'number' || meta.pgTrxOutbox.libuv.mean === null, true)
+  assert.strictEqual(typeof meta.pgTrxOutbox.beforeMemory.heapTotal, 'number')
+  assert.strictEqual(typeof meta.pgTrxOutbox.afterMemory.heapTotal, 'number')
+  assert.strictEqual(typeof meta.pgTrxOutbox.uptime, 'number')
 })
