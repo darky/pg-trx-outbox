@@ -552,7 +552,8 @@ which will be persisted with using of `SerialAdapter`, `ParallelAdapter` or `Gro
     libuv: { /* [1] */ }, // contains libuv metrics for detecting CPU stucks
     beforeMemory: { /* [2] */ }, // memory usage before event
     afterMemory: { /* [2] */ }, // memory usage after event
-    uptime: 100 // [3] uptime of process
+    uptime: 100, // [3] uptime of process
+    cpuUsage: { /* [4] */ } // CPU usage per event
   }
 }
 ```
@@ -560,6 +561,7 @@ which will be persisted with using of `SerialAdapter`, `ParallelAdapter` or `Gro
 - [1] https://nodejs.org/dist/latest-v20.x/docs/api/perf_hooks.html#class-histogram
 - [2] https://nodejs.org/dist/latest-v20.x/docs/api/process.html#processmemoryusage
 - [3] https://nodejs.org/dist/latest-v20.x/docs/api/process.html#processuptime
+- [4] https://nodejs.org/dist/latest-v20.x/docs/api/process.html#processcpuusagepreviousvalue
 
 ## Context id
 
