@@ -58,6 +58,7 @@ test('sending error', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         throw new Error('test')
       },
@@ -100,6 +101,7 @@ test('onError callback', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return []
       },

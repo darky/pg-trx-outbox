@@ -60,6 +60,7 @@ test('basic since_at check', async () => {
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      async onHandled() {}
       async handleMessage() {
         return { value: { ok: true } }
       }

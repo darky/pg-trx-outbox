@@ -62,6 +62,7 @@ test('partition handling success', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [{ status: 'fulfilled', value: { ok: true } }]
       },
@@ -96,6 +97,7 @@ test('waitResponse on partition success', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [{ status: 'fulfilled', value: { ok: true } }]
       },

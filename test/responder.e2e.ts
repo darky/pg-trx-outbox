@@ -59,6 +59,7 @@ test('waitResponse success', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return []
       },
@@ -95,6 +96,7 @@ test('waitResponse error', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return []
       },
@@ -129,6 +131,7 @@ test('Adapter.send should satisfy Promise.allSettled', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send(messages) {
         return Promise.allSettled(
           messages.map(async m => ((m.value as { success: true }).success ? { ok: true } : Promise.reject('err')))
@@ -168,6 +171,7 @@ test('should work with string response (JSONB error)', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send(messages) {
         return Promise.allSettled(messages.map(() => 'string'))
       },
@@ -205,6 +209,7 @@ test('should work with array response (JSONB error)', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [
           { value: [1], status: 'fulfilled' },

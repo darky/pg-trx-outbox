@@ -60,6 +60,7 @@ test('basic topicFilter works', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send(messages) {
         messages.forEach(m => handled.push(m))
         return [{ status: 'fulfilled', value: 1 }]

@@ -60,6 +60,7 @@ test('meta response works', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [{ meta: { metaWorks: true }, value: {}, status: 'fulfilled' }]
       },
@@ -95,6 +96,7 @@ test('built-in meta works', async () => {
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      async onHandled() {}
       async handleMessage() {
         return { value: { ok: true }, meta: { response: true } }
       }

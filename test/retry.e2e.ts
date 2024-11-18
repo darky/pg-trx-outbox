@@ -58,6 +58,7 @@ test('on retry error not processed', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [{ reason: new Error('test err'), status: 'rejected' }]
       },
@@ -103,6 +104,7 @@ test('on not retry error is processed', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [{ reason: new Error('test err'), status: 'rejected' }]
       },
@@ -152,6 +154,7 @@ test('preserve error after retry', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [resps.shift()!]
       },
@@ -205,6 +208,7 @@ test('retry max attempts exceeded', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [resps.shift()!]
       },
@@ -257,6 +261,7 @@ test('retry delay', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return [resps.shift()!]
       },

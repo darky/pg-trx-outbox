@@ -61,6 +61,7 @@ test('basic contextId persistance works', async () => {
     adapter: {
       async start() {},
       async stop() {},
+      async onHandled() {},
       async send() {
         return []
       },
@@ -99,6 +100,7 @@ test('extract contextId from context works', async () => {
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      async onHandled() {}
       async handleMessage() {
         contextId = pgKafkaTrxOutbox.contextId()!
         return { value: { ok: true } }
@@ -134,6 +136,7 @@ test('contextId returns null outside of context', async () => {
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      async onHandled() {}
       async handleMessage() {
         return { value: { ok: true } }
       }
@@ -158,6 +161,7 @@ test('contextId returns null in context, but outside of message handler', async 
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      async onHandled() {}
       async handleMessage() {
         return { value: { ok: true } }
       }
