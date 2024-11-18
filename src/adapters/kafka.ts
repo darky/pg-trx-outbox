@@ -29,6 +29,8 @@ export class Kafka implements Adapter {
     await this.producer.disconnect()
   }
 
+  async onHandled() {}
+
   async send(messages: readonly OutboxMessage[]) {
     try {
       return await this.producer

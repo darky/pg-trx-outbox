@@ -6,6 +6,8 @@ export abstract class ParallelAdapter extends BaseAdapter implements Adapter {
 
   abstract stop(): Promise<void>
 
+  abstract onHandled(messages: readonly OutboxMessage[]): Promise<void>
+
   async send(messages: readonly OutboxMessage[]) {
     return Promise.all(
       messages.map(async msg => {

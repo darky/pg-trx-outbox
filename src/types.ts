@@ -30,7 +30,11 @@ export interface Send {
   ): Promise<((PromiseFulfilledResult<unknown> | PromiseRejectedResult) & { meta?: object })[]>
 }
 
-export type Adapter = StartStop & Send
+export interface OnHandled {
+  onHandled(messages: readonly OutboxMessage[]): Promise<void>
+}
+
+export type Adapter = StartStop & Send & OnHandled
 
 export type Options = {
   pgOptions: PoolConfig

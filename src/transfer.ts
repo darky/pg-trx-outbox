@@ -69,6 +69,7 @@ export class Transfer {
       await client.query('commit')
       client.release()
     }
+    await this.adapter.onHandled(messages)
   }
 
   private async fetchPgMessages(client: PoolClient) {

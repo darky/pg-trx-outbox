@@ -57,10 +57,15 @@ afterEach(async () => {
 })
 
 test('SerialAdapter works', async () => {
+  const handledMessages: OutboxMessage[] = []
+
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
+      override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
+        messages.forEach(m => handledMessages.push(m))
+      }
       async handleMessage(message: OutboxMessage) {
         if ((message.value as { ok: true }).ok) {
           return { value: { success: true } }
@@ -97,13 +102,21 @@ test('SerialAdapter works', async () => {
 
   assert.strictEqual(resp[1]?.response, null)
   assert.match(resp[1]?.error ?? '', /err/)
+
+  assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
+  assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
 })
 
 test('ParallelAdapter works', async () => {
+  const handledMessages: OutboxMessage[] = []
+
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends ParallelAdapter {
       async start() {}
       async stop() {}
+      override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
+        messages.forEach(m => handledMessages.push(m))
+      }
       async handleMessage(message: OutboxMessage) {
         if ((message.value as { ok: true }).ok) {
           return { value: { success: true } }
@@ -140,13 +153,21 @@ test('ParallelAdapter works', async () => {
 
   assert.strictEqual(resp[1]?.response, null)
   assert.match(resp[1]?.error ?? '', /err/)
+
+  assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
+  assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
 })
 
 test('GroupedAdapter works', async () => {
+  const handledMessages: OutboxMessage[] = []
+
   pgKafkaTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends ParallelAdapter {
       async start() {}
       async stop() {}
+      override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
+        messages.forEach(m => handledMessages.push(m))
+      }
       async handleMessage(message: OutboxMessage) {
         if ((message.value as { ok: true }).ok) {
           return { value: { success: true } }
@@ -183,4 +204,7 @@ test('GroupedAdapter works', async () => {
 
   assert.strictEqual(resp[1]?.response, null)
   assert.match(resp[1]?.error ?? '', /err/)
+
+  assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
+  assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
 })
