@@ -236,6 +236,10 @@ class MyOwnAdapter implements Adapter {
       { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
     ]
   },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
 }
 
 const pgTrxOutbox = new PgTrxOutbox({
@@ -286,6 +290,10 @@ class MyOwnAdapter extends SerialAdapter {
     // which will be saved in appropriate DB column
     return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
   },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
 }
 
 const pgTrxOutbox = new PgTrxOutbox({
@@ -334,6 +342,10 @@ class MyOwnAdapter extends ParallelAdapter {
     // which will be saved in appropriate DB column
     return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
   },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
 }
 
 const pgTrxOutbox = new PgTrxOutbox({
@@ -385,6 +397,10 @@ class MyOwnAdapter extends GroupedAdapter {
     // which will be saved in appropriate DB column
     return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
   },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
 }
 
 const pgTrxOutbox = new PgTrxOutbox({
@@ -591,6 +607,10 @@ class MyOwnAdapter extends SerialAdapter {
       values ('some.topic', 'key', '{"someValue": true}', $1)
     `, [pgTrxOutbox.contextId()])
   },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
 }
 
 const pgTrxOutbox = new PgTrxOutbox({
