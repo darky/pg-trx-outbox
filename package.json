@@ -31,19 +31,19 @@
   "license": "MIT",
   "dependencies": {
     "pg": "^8.13.1",
-    "robot3": "^1.0.0",
+    "robot3": "^1.0.1",
     "throw": "^1.1.1",
     "ts-pattern": "^5.5.0"
   },
   "devDependencies": {
-    "@testcontainers/kafka": "^10.14.0",
-    "@testcontainers/postgresql": "^10.14.0",
-    "@types/node": "^22.9.0",
+    "@testcontainers/kafka": "^10.15.0",
+    "@testcontainers/postgresql": "^10.15.0",
+    "@types/node": "^22.9.3",
     "@types/pg": "^8.11.10",
-    "testcontainers": "^10.14.0",
+    "testcontainers": "^10.15.0",
     "ts-fp-di": "^0.22.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.7.2"
   },
   "optionalDependencies": {
     "dataloader": "^2.2.2",
