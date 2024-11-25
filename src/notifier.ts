@@ -1,6 +1,6 @@
 import type { Subscriber } from 'pg-listen'
-import type { Options, StartStop } from './types'
-import type { FSM } from './fsm'
+import type { Options, StartStop } from './types.ts'
+import type { FSM } from './fsm.ts'
 
 export class Notifier implements StartStop {
   private notifier!: Subscriber

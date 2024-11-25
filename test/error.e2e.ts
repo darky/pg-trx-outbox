@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, test } from 'node:test'
-import { PgTrxOutbox } from '../src'
+import { PgTrxOutbox } from '../src/index.ts'
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Client } from 'pg'
 import assert from 'node:assert'

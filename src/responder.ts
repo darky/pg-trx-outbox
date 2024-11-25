@@ -1,6 +1,6 @@
 import { action, createMachine, interpret, invoke, state, transition } from 'robot3'
-import type { Pg } from './pg'
-import type { Options, OutboxMessage, StartStop } from './types'
+import type { Pg } from './pg.ts'
+import type { Options, OutboxMessage, StartStop } from './types.ts'
 
 export class Responder implements StartStop {
   private fsm = interpret(

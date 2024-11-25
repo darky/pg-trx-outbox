@@ -1,5 +1,5 @@
 import { diInit, diSet } from 'ts-fp-di'
-import type { Adapter, OutboxMessage } from '../../types'
+import type { Adapter, OutboxMessage } from '../../types.ts'
 import { monitorEventLoopDelay } from 'perf_hooks'
 
 export abstract class BaseAdapter {

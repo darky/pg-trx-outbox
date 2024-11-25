@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, test } from 'node:test'
-import { PgTrxOutbox } from '../src'
+import { PgTrxOutbox } from '../src/index.ts'
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Client } from 'pg'
 import assert from 'node:assert'
-import { OutboxMessage } from '../src/types'
+import { OutboxMessage } from '../src/types.ts'
 import { setTimeout } from 'timers/promises'
-import { SerialAdapter } from '../src/adapters/abstract/serial'
-import { ParallelAdapter } from '../src/adapters/abstract/parallel'
+import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
+import { ParallelAdapter } from '../src/adapters/abstract/parallel.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client

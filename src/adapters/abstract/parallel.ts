@@ -1,5 +1,5 @@
-import type { Adapter, OutboxMessage } from '../../types'
-import { BaseAdapter } from './base'
+import type { Adapter, OutboxMessage } from '../../types.ts'
+import { BaseAdapter } from './base.ts'
 
 export abstract class ParallelAdapter extends BaseAdapter implements Adapter {
   abstract start(): Promise<void>

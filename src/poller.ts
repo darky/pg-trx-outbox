@@ -1,5 +1,5 @@
-import type { Options, StartStop } from './types'
-import type { FSM } from './fsm'
+import type { Options, StartStop } from './types.ts'
+import type { FSM } from './fsm.ts'
 
 export class Poller implements StartStop {
   private pollTimer?: NodeJS.Timeout

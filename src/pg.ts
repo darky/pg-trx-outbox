@@ -1,5 +1,5 @@
 import { Pool, QueryResultRow } from 'pg'
-import type { Options, StartStop } from './types'
+import type { Options, StartStop } from './types.ts'
 
 export class Pg implements StartStop {
   private pool: Pool

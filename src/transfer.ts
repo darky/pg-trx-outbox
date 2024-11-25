@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg'
-import { Pg } from './pg'
-import type { Adapter, Options, OutboxMessage } from './types'
+import { Pg } from './pg.ts'
+import type { Adapter, Options, OutboxMessage } from './types.ts'
 import thr from 'throw'
 
 export class Transfer {

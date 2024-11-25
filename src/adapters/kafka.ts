@@ -1,5 +1,5 @@
 import { Producer, Kafka as KafkaJS, KafkaConfig, ProducerConfig } from 'kafkajs'
-import type { Adapter, OutboxMessage } from '../types'
+import type { Adapter, OutboxMessage } from '../types.ts'
 
 export class Kafka implements Adapter {
   private producer: Producer

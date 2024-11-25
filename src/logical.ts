@@ -1,6 +1,6 @@
 import type { LogicalReplicationService } from 'pg-logical-replication'
-import type { Options, OutboxMessage, StartStop } from './types'
-import type { Transfer } from './transfer'
+import type { Options, OutboxMessage, StartStop } from './types.ts'
+import type { Transfer } from './transfer.ts'
 import type { MessageInsert } from 'pg-logical-replication/dist/output-plugins/pgoutput/pgoutput.types'
 import type DataLoader from 'dataloader'
 import type PQueue from 'p-queue'

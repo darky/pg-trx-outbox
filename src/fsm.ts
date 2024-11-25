@@ -1,6 +1,6 @@
 import { action, createMachine, interpret, invoke, state, transition } from 'robot3'
-import type { Transfer } from './transfer'
-import type { Options } from './types'
+import type { Transfer } from './transfer.ts'
+import type { Options } from './types.ts'
 
 export class FSM {
   constructor(private options: Options, private transfer: Transfer) {}

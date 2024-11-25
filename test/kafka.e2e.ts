@@ -3,10 +3,10 @@ import { afterEach, beforeEach, test } from 'node:test'
 import { Client } from 'pg'
 import { KafkaContainer, StartedKafkaContainer } from '@testcontainers/kafka'
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
-import { PgTrxOutbox } from '../src/index'
+import { PgTrxOutbox } from '../src/index.ts'
 import { setTimeout } from 'timers/promises'
 import assert from 'assert'
-import { Kafka } from '../src/adapters/kafka'
+import { Kafka } from '../src/adapters/kafka.ts'
 
 let kafkaDocker: StartedKafkaContainer
 let pgDocker: StartedPostgreSqlContainer
