@@ -36,11 +36,11 @@
     "ts-pattern": "^5.5.0"
   },
   "devDependencies": {
-    "@testcontainers/kafka": "^10.15.0",
-    "@testcontainers/postgresql": "^10.15.0",
-    "@types/node": "^22.9.3",
+    "@testcontainers/kafka": "^10.16.0",
+    "@testcontainers/postgresql": "^10.16.0",
+    "@types/node": "^22.10.1",
     "@types/pg": "^8.11.10",
-    "testcontainers": "^10.15.0",
+    "testcontainers": "^10.16.0",
     "ts-fp-di": "^0.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
