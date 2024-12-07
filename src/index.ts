@@ -8,6 +8,7 @@ import { P, match } from 'ts-pattern'
 import { Pg } from './pg.ts'
 import { Responder } from './responder.ts'
 import { diDep, diExists, diHas } from 'ts-fp-di'
+import { Es } from './es.ts'
 
 export class PgTrxOutbox implements StartStop {
   private pg: Pg
@@ -17,6 +18,7 @@ export class PgTrxOutbox implements StartStop {
   private poller?: Poller
   private notifier?: Notifier
   private logical?: Logical
+  private es?: Es
 
   constructor(options: Options) {
     const opts: Options = {
@@ -30,7 +32,8 @@ export class PgTrxOutbox implements StartStop {
     }
     this.adapter = opts.adapter
     this.pg = new Pg(opts)
-    this.transfer = new Transfer(opts, this.pg, this.adapter)
+    this.es = new Es(this.pg, this.adapter, opts)
+    this.transfer = new Transfer(opts, this.pg, this.adapter, this.es)
     this.responder = new Responder(opts, this.pg)
     const fsm = new FSM(opts, this.transfer)
     match(opts.outboxOptions?.mode)
@@ -47,12 +50,14 @@ export class PgTrxOutbox implements StartStop {
     await this.adapter.start()
     await this.pg.start()
     await this.responder.start()
+    await this.es?.start()
     await this.poller?.start()
     await this.notifier?.start()
     await this.logical?.start()
   }
 
   async stop() {
+    await this.es?.stop()
     await this.logical?.stop()
     await this.notifier?.stop()
     await this.poller?.stop()

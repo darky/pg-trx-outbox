@@ -2,9 +2,15 @@ import type { PoolClient } from 'pg'
 import { Pg } from './pg.ts'
 import type { Adapter, Options, OutboxMessage } from './types.ts'
 import thr from 'throw'
+import type { Es } from './es.ts'
 
 export class Transfer {
-  constructor(private readonly options: Options, private readonly pg: Pg, private readonly adapter: Adapter) {}
+  constructor(
+    private readonly options: Options,
+    private readonly pg: Pg,
+    private readonly adapter: Adapter,
+    private readonly es: Es
+  ) {}
 
   async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
     let messages: readonly OutboxMessage[] = []
@@ -48,23 +54,22 @@ export class Transfer {
           )
         }
         await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt)
+        this.es.setLastEventId(messages.at(-1)?.id ?? '0')
       }
     } catch (e) {
-      if ((e as { code: string }).code !== '55P03') {
-        if (messages.length) {
-          await this.updateToProcessed(
-            client,
-            messages.map(r => r.id),
-            messages.map(() => null),
-            messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
-            messages.map(() => null),
-            messages.map(() => true),
-            messages.map(m => m.attempts),
-            messages.map(m => m.since_at)
-          )
-        }
-        throw e
+      if (messages.length) {
+        await this.updateToProcessed(
+          client,
+          messages.map(r => r.id),
+          messages.map(() => null),
+          messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+          messages.map(() => null),
+          messages.map(() => true),
+          messages.map(m => m.attempts),
+          messages.map(m => m.since_at)
+        )
       }
+      throw e
     } finally {
       await client.query('commit')
       client.release()
@@ -79,15 +84,16 @@ export class Transfer {
           select * from pg_trx_outbox${
             this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
           }
-          where processed = false and (since_at is null or now() > since_at) ${
-            this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''
-          }
+          where not is_event and processed = false and (since_at is null or now() > since_at) ${
+            this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''
+          } or is_event and id > $2
           order by id
           limit $1
-          for update nowait
+          for update
         `,
         [
           this.options.outboxOptions?.limit ?? 50,
+          this.es.getLastEventId(),
           ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
         ]
       )

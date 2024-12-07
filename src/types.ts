@@ -82,4 +82,10 @@ export type Options = {
      */
     retryMaxAttempts?: number
   }
+  eventSourcingOptions?: {
+    /**
+     * how much messages send for processing on init sync, default 100
+     */
+    initSyncBatchSize?: number
+  }
 }
