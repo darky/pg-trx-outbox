@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, test } from 'node:test'
-import { PgTrxOutbox } from '../src/index.ts'
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Client } from 'pg'
-import assert from 'node:assert'
-import { OutboxMessage } from '../src/types.ts'
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
+import { PgTrxOutbox } from '../src/index.ts'
 import { setTimeout } from 'timers/promises'
+import assert from 'assert'
+import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
+import { OutboxMessage } from '../src/types.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
@@ -27,7 +28,7 @@ beforeEach(async () => {
   await pg.connect()
   await pg.query('DROP TABLE IF EXISTS pg_trx_outbox')
   await pg.query(`
-    CREATE TABLE pg_trx_outbox (
+    CREATE TABLE IF NOT EXISTS pg_trx_outbox (
       id bigserial NOT NULL,
       processed bool NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -55,18 +56,20 @@ afterEach(async () => {
   await pg.end()
 })
 
-test('basic topicFilter works', async () => {
-  let handled: OutboxMessage[] = []
+test('limit', async () => {
+  let i = 0
+  let message: OutboxMessage
   pgTrxOutbox = new PgTrxOutbox({
-    adapter: {
-      async start() {},
-      async stop() {},
-      async onHandled() {},
-      async send(messages) {
-        messages.forEach(m => handled.push(m))
-        return [{ status: 'fulfilled', value: 1 }]
-      },
-    },
+    adapter: new (class extends SerialAdapter {
+      async start() {}
+      async stop() {}
+      override async onHandled(): Promise<void> {}
+      async handleMessage(m: OutboxMessage) {
+        i++
+        message = m
+        return { value: { success: true } }
+      }
+    })(),
     pgOptions: {
       host: pgDocker.getHost(),
       port: pgDocker.getPort(),
@@ -76,24 +79,29 @@ test('basic topicFilter works', async () => {
     },
     outboxOptions: {
       pollInterval: 300,
-      topicFilter: ['handled'],
+      limit: 1,
     },
   })
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true, "n": 1}'),
+        ('pg.trx.outbox', 'testKey', '{"test": true, "n": 2}');
+    `)
   await pgTrxOutbox.start()
-  await pg.query(
-    `
-      INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES
-        ('handled', 'testKey', '{"handled": true}'),
-        ('not.handled', 'testKey', '{"ok": true}')
-    `
-  )
-  await setTimeout(1000)
+  await setTimeout(350)
 
-  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+  }[] = await pg.query(`select * from pg_trx_outbox order by id`).then(resp => resp.rows)
+  assert.strictEqual(processedRow[0]?.processed, true)
+  assert.strictEqual(processedRow[0]?.updated_at > processedRow[0]?.created_at, true)
 
-  assert.strictEqual(resp.find(m => m.topic === 'handled')?.processed, true)
-  assert.strictEqual(resp.find(m => m.topic === 'not.handled')?.processed, false)
-  assert.strictEqual(handled.length, 1)
-  assert.strictEqual(handled[0]?.topic, 'handled')
+  assert.strictEqual(processedRow[1]?.processed, false)
+  assert.strictEqual(processedRow[1]?.updated_at.toISOString(), processedRow[1]?.created_at.toISOString())
+
+  assert.strictEqual(i, 1)
+  assert.deepStrictEqual(message!.value, { n: 1, test: true })
 })

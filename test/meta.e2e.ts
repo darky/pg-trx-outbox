@@ -9,7 +9,7 @@ import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -52,12 +52,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('meta response works', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -77,12 +77,12 @@ test('meta response works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}')
     `
   )
   await setTimeout(1000)
@@ -93,7 +93,7 @@ test('meta response works', async () => {
 })
 
 test('built-in meta works', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -113,12 +113,12 @@ test('built-in meta works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}')
     `
   )
   await setTimeout(1000)

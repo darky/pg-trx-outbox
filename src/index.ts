@@ -3,7 +3,6 @@ import { Notifier } from './notifier.ts'
 import { Poller } from './poller.ts'
 import { Transfer } from './transfer.ts'
 import { FSM } from './fsm.ts'
-import { Logical } from './logical.ts'
 import { P, match } from 'ts-pattern'
 import { Pg } from './pg.ts'
 import { Responder } from './responder.ts'
@@ -17,7 +16,6 @@ export class PgTrxOutbox implements StartStop {
   private responder: Responder
   private poller?: Poller
   private notifier?: Notifier
-  private logical?: Logical
   private es?: Es
 
   constructor(options: Options) {
@@ -42,7 +40,6 @@ export class PgTrxOutbox implements StartStop {
         this.poller = new Poller(opts, fsm)
         this.notifier = new Notifier(opts, fsm)
       })
-      .with('logical', () => (this.logical = new Logical(opts, this.transfer)))
       .exhaustive()
   }
 
@@ -53,12 +50,10 @@ export class PgTrxOutbox implements StartStop {
     await this.es?.start()
     await this.poller?.start()
     await this.notifier?.start()
-    await this.logical?.start()
   }
 
   async stop() {
     await this.es?.stop()
-    await this.logical?.stop()
     await this.notifier?.stop()
     await this.poller?.stop()
     await this.responder.stop()

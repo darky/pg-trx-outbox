@@ -8,7 +8,7 @@ import { setTimeout } from 'timers/promises'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -51,12 +51,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('waitResponse success', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -76,24 +76,24 @@ test('waitResponse success', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   const [{ id } = { id: '' }] = await pg
     .query<{ id: string }>(
       `
         INSERT INTO pg_trx_outbox (topic, "key", value, processed, response)
-        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, '{"test": true}')
+        VALUES ('pg.trx.outbox', 'testKey', '{"test": true}', true, '{"test": true}')
         RETURNING id;
       `
     )
     .then(resp => resp.rows)
 
-  const resp = await pgKafkaTrxOutbox.waitResponse<{ test: true }>(id)
+  const resp = await pgTrxOutbox.waitResponse<{ test: true }>(id)
 
   assert.strictEqual(resp.test, true)
 })
 
 test('waitResponse error', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -113,22 +113,22 @@ test('waitResponse error', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   const [{ id } = { id: '' }] = await pg
     .query<{ id: string }>(
       `
         INSERT INTO pg_trx_outbox (topic, "key", value, processed, error)
-        VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true, 'test')
+        VALUES ('pg.trx.outbox', 'testKey', '{"test": true}', true, 'test')
         RETURNING id;
       `
     )
     .then(resp => resp.rows)
 
-  assert.rejects(() => pgKafkaTrxOutbox.waitResponse(id), new Error('test'))
+  assert.rejects(() => pgTrxOutbox.waitResponse(id), new Error('test'))
 })
 
 test('Adapter.send should satisfy Promise.allSettled', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -150,12 +150,12 @@ test('Adapter.send should satisfy Promise.allSettled', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+      VALUES ('pg.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.trx.outbox', 'testKey', '{"error": true}')
     `
   )
   await setTimeout(1000)
@@ -168,7 +168,7 @@ test('Adapter.send should satisfy Promise.allSettled', async () => {
 })
 
 test('should work with string response (JSONB error)', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -188,12 +188,12 @@ test('should work with string response (JSONB error)', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+      VALUES ('pg.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.trx.outbox', 'testKey', '{"error": true}')
     `
   )
   await setTimeout(1000)
@@ -206,7 +206,7 @@ test('should work with string response (JSONB error)', async () => {
 })
 
 test('should work with array response (JSONB error)', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -229,12 +229,12 @@ test('should work with array response (JSONB error)', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"success": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"error": true}')
+      VALUES ('pg.trx.outbox', 'testKey', '{"success": true}'),
+        ('pg.trx.outbox', 'testKey', '{"error": true}')
     `
   )
   await setTimeout(1000)

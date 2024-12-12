@@ -9,7 +9,7 @@ import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -52,12 +52,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('basic since_at check', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -77,14 +77,14 @@ test('basic since_at check', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value, since_at)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', null),
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', now() - interval '1 minute'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}', now() + interval '1 minute')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}', null),
+        ('pg.trx.outbox', 'testKey', '{"ok": true}', now() - interval '1 minute'),
+        ('pg.trx.outbox', 'testKey', '{"ok": true}', now() + interval '1 minute')
     `
   )
   await setTimeout(1000)

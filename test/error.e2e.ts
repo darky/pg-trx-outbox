@@ -7,7 +7,7 @@ import { setTimeout } from 'timers/promises'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -50,12 +50,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('sending error', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -75,11 +75,11 @@ test('sending error', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 
@@ -98,7 +98,7 @@ test('sending error', async () => {
 
 test('onError callback', async () => {
   let err!: Error
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -121,7 +121,7 @@ test('onError callback', async () => {
       },
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(`
     DROP TABLE pg_trx_outbox;
   `)

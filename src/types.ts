@@ -56,7 +56,7 @@ export type Options = {
      * how much messages send for processing, default 50
      */
     limit?: number
-    mode?: 'short-polling' | 'notify' | 'logical'
+    mode?: 'short-polling' | 'notify'
     /**
      * callback for handling uncaught error
      */

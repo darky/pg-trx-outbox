@@ -9,8 +9,8 @@ import { setTimeout } from 'node:timers/promises'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
-let pgKafkaTrxOutbox2: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
+let pgTrxOutbox2: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -53,8 +53,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
-  pgKafkaTrxOutbox2! && (await pgKafkaTrxOutbox2!.stop())
+  await pgTrxOutbox.stop()
+  pgTrxOutbox2! && (await pgTrxOutbox2!.stop())
   await pg.end()
 })
 
@@ -63,14 +63,14 @@ test('ES init sync works', async () => {
     `
       INSERT INTO pg_trx_outbox (topic, "key", value, is_event)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test2": true}', true)
+        ('pg.trx.outbox', 'testKey', '{"test": true}', true),
+        ('pg.trx.outbox', 'testKey', '{"test2": true}', true)
     `
   )
 
   const messages = [] as OutboxMessage[]
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -91,7 +91,7 @@ test('ES init sync works', async () => {
       pollInterval: 10000,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
 
   assert.deepStrictEqual(
     messages.map(m => m.value),
@@ -104,14 +104,14 @@ test('ES init sync should ignore commands', async () => {
     `
       INSERT INTO pg_trx_outbox (topic, "key", value, is_event)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', false),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test2": true}', false)
+        ('pg.trx.outbox', 'testKey', '{"test": true}', false),
+        ('pg.trx.outbox', 'testKey', '{"test2": true}', false)
     `
   )
 
   const messages = [] as OutboxMessage[]
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -132,7 +132,7 @@ test('ES init sync should ignore commands', async () => {
       pollInterval: 10000,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
 
   assert.deepStrictEqual(
     messages.map(m => m.value),
@@ -143,7 +143,7 @@ test('ES init sync should ignore commands', async () => {
 test('should fetch events with commands', async () => {
   const messages = [] as OutboxMessage[]
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -164,15 +164,15 @@ test('should fetch events with commands', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
 
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value, is_event)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test2": true}', false),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test3": true}', true)
+        ('pg.trx.outbox', 'testKey', '{"test": true}', true),
+        ('pg.trx.outbox', 'testKey', '{"test2": true}', false),
+        ('pg.trx.outbox', 'testKey', '{"test3": true}', true)
     `
   )
 
@@ -187,7 +187,7 @@ test('should fetch events with commands', async () => {
 test('events should be reconsumed by another consumer', async () => {
   const messages = [] as string[]
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -209,7 +209,7 @@ test('events should be reconsumed by another consumer', async () => {
     },
   })
 
-  pgKafkaTrxOutbox2 = new PgTrxOutbox({
+  pgTrxOutbox2 = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -231,16 +231,16 @@ test('events should be reconsumed by another consumer', async () => {
     },
   })
 
-  await pgKafkaTrxOutbox.start()
-  await pgKafkaTrxOutbox2.start()
+  await pgTrxOutbox.start()
+  await pgTrxOutbox2.start()
 
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value, is_event)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"test": true}', true),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test2": true}', false),
-        ('pg.kafka.trx.outbox', 'testKey', '{"test3": true}', true)
+        ('pg.trx.outbox', 'testKey', '{"test": true}', true),
+        ('pg.trx.outbox', 'testKey', '{"test2": true}', false),
+        ('pg.trx.outbox', 'testKey', '{"test3": true}', true)
     `
   )
 

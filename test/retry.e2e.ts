@@ -83,7 +83,7 @@ test('on retry error not processed', async () => {
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 
@@ -129,7 +129,7 @@ test('on not retry error is processed', async () => {
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 
@@ -179,7 +179,7 @@ test('preserve error after retry', async () => {
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 
@@ -234,7 +234,7 @@ test('retry max attempts exceeded', async () => {
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 
@@ -286,7 +286,7 @@ test('retry delay', async () => {
   await pg.query(`
     INSERT INTO pg_trx_outbox
       (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}');
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
     `)
   await setTimeout(1000)
 

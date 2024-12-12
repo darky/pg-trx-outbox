@@ -10,7 +10,7 @@ import { diInit } from 'ts-fp-di'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -53,12 +53,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('basic contextId persistance works', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -78,13 +78,13 @@ test('basic contextId persistance works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"ok": true}')
     `
   )
   await setTimeout(1000)
@@ -97,13 +97,13 @@ test('basic contextId persistance works', async () => {
 
 test('extract contextId from context works', async () => {
   let contextId = 0
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
       async onHandled() {}
       async handleMessage() {
-        contextId = pgKafkaTrxOutbox.contextId()!
+        contextId = pgTrxOutbox.contextId()!
         return { value: { ok: true } }
       }
     })(),
@@ -118,13 +118,13 @@ test('extract contextId from context works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"ok": true}')
     `
   )
   await setTimeout(1000)
@@ -133,7 +133,7 @@ test('extract contextId from context works', async () => {
 })
 
 test('contextId returns null outside of context', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -153,12 +153,12 @@ test('contextId returns null outside of context', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
-  assert.strictEqual(pgKafkaTrxOutbox.contextId(), null)
+  await pgTrxOutbox.start()
+  assert.strictEqual(pgTrxOutbox.contextId(), null)
 })
 
 test('contextId returns null in context, but outside of message handler', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -178,8 +178,8 @@ test('contextId returns null in context, but outside of message handler', async 
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await diInit(async () => {
-    assert.strictEqual(pgKafkaTrxOutbox.contextId(), null)
+    assert.strictEqual(pgTrxOutbox.contextId(), null)
   })
 })

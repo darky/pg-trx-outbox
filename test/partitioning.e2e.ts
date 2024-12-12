@@ -8,7 +8,7 @@ import { setTimeout } from 'timers/promises'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -54,12 +54,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('partition handling success', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -80,11 +80,11 @@ test('partition handling success', async () => {
       partition: 0,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}')
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}')
     `
   )
   await setTimeout(1000)
@@ -94,7 +94,7 @@ test('partition handling success', async () => {
 })
 
 test('waitResponse on partition success', async () => {
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: {
       async start() {},
       async stop() {},
@@ -115,17 +115,17 @@ test('waitResponse on partition success', async () => {
       partition: 0,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   const id = await pg
     .query<{ id: string }>(
       `
       INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('pg.kafka.trx.outbox', 'testKey', '{"test": true}')
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}')
       RETURNING id
     `
     )
     .then(r => (r.rows[0] ?? { id: '' }).id)
 
-  const resp = await pgKafkaTrxOutbox.waitResponse<{ ok: true }>(id, 'testKey')
+  const resp = await pgTrxOutbox.waitResponse<{ ok: true }>(id, 'testKey')
   assert.deepEqual(resp, { ok: true })
 })

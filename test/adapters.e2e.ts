@@ -10,7 +10,7 @@ import { ParallelAdapter } from '../src/adapters/abstract/parallel.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
-let pgKafkaTrxOutbox: PgTrxOutbox
+let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
   pgDocker = await new PostgreSqlContainer()
@@ -53,14 +53,14 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await pgKafkaTrxOutbox.stop()
+  await pgTrxOutbox.stop()
   await pg.end()
 })
 
 test('SerialAdapter works', async () => {
   const handledMessages: OutboxMessage[] = []
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
       async stop() {}
@@ -85,13 +85,13 @@ test('SerialAdapter works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"err": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"err": true}')
     `
   )
   await setTimeout(1000)
@@ -111,7 +111,7 @@ test('SerialAdapter works', async () => {
 test('ParallelAdapter works', async () => {
   const handledMessages: OutboxMessage[] = []
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends ParallelAdapter {
       async start() {}
       async stop() {}
@@ -136,13 +136,13 @@ test('ParallelAdapter works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"err": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"err": true}')
     `
   )
   await setTimeout(1000)
@@ -162,7 +162,7 @@ test('ParallelAdapter works', async () => {
 test('GroupedAdapter works', async () => {
   const handledMessages: OutboxMessage[] = []
 
-  pgKafkaTrxOutbox = new PgTrxOutbox({
+  pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends ParallelAdapter {
       async start() {}
       async stop() {}
@@ -187,13 +187,13 @@ test('GroupedAdapter works', async () => {
       pollInterval: 300,
     },
   })
-  await pgKafkaTrxOutbox.start()
+  await pgTrxOutbox.start()
   await pg.query(
     `
       INSERT INTO pg_trx_outbox (topic, "key", value)
       VALUES
-        ('pg.kafka.trx.outbox', 'testKey', '{"ok": true}'),
-        ('pg.kafka.trx.outbox', 'testKey', '{"err": true}')
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"err": true}')
     `
   )
   await setTimeout(1000)
