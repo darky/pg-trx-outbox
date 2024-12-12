@@ -41,6 +41,7 @@ export class Es implements StartStop {
       await this.adapter.send(messages)
       this.setLastEventId(messages.at(-1)!.id)
     }
+    await cursor.close()
     client.release()
   }
 }
