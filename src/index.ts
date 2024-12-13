@@ -16,7 +16,7 @@ export class PgTrxOutbox implements StartStop {
   private responder: Responder
   private poller?: Poller
   private notifier?: Notifier
-  private es?: Es
+  private es: Es
 
   constructor(options: Options) {
     const opts: Options = {
@@ -47,13 +47,13 @@ export class PgTrxOutbox implements StartStop {
     await this.adapter.start()
     await this.pg.start()
     await this.responder.start()
-    await this.es?.start()
+    await this.es.start()
     await this.poller?.start()
     await this.notifier?.start()
   }
 
   async stop() {
-    await this.es?.stop()
+    await this.es.stop()
     await this.notifier?.stop()
     await this.poller?.stop()
     await this.responder.stop()
@@ -67,5 +67,9 @@ export class PgTrxOutbox implements StartStop {
 
   contextId() {
     return diExists() && diHas('pg_trx_outbox_context_id') ? diDep<number>('pg_trx_outbox_context_id') : null
+  }
+
+  getLastEventId() {
+    return this.es.getLastEventId()
   }
 }
