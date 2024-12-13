@@ -81,7 +81,13 @@ export class Transfer {
     return await client
       .query<OutboxMessage>(
         `
-          select * from pg_trx_outbox${
+          select
+            id,
+            topic,
+            key,
+            value,
+            context_id
+          from pg_trx_outbox${
             this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
           }
           where not is_event and processed = false and (since_at is null or now() > since_at) ${

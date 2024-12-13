@@ -26,7 +26,13 @@ export class Es implements StartStop {
     const cursor = client.query(
       new Cursor(
         `
-          select * from pg_trx_outbox
+          select
+            id,
+            topic,
+            key,
+            value,
+            context_id
+          from pg_trx_outbox
           where is_event and id > $1
           order by id
         `,
