@@ -86,7 +86,10 @@ export class Transfer {
             topic,
             key,
             value,
-            context_id
+            context_id,
+            error,
+            attempts,
+            since_at
           from pg_trx_outbox${
             this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
           }
