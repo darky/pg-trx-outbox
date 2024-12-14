@@ -48,7 +48,7 @@ CREATE INDEX pg_trx_outbox_not_processed_idx
 
 * Event it's row when `is_event = true`
 * Same event wlll be handled by all consumers
-* Usually used for DB denormalization, cache creation, etc
+* Usually used for DB denormalization, cache creation, response providing, etc
 
 ## Modes
 
