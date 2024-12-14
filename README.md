@@ -2,8 +2,9 @@
 
 ![photo_2023-04-22_03-38-43](https://user-images.githubusercontent.com/1832800/234091651-2a496563-6016-45fa-96f6-0b875899fe7e.jpg)
 
-Transactional outbox of Postgres for Node.js<br/>
-More info about Transactional Outbox pattern: https://microservices.io/patterns/data/transactional-outbox.html
+Transactional outbox of Postgres for Node.js with little Event Sourcing<br/>
+More info about Transactional Outbox pattern: https://microservices.io/patterns/data/transactional-outbox.html<br/>
+More info about Event Sourcing pattern: https://microservices.io/patterns/data/event-sourcing.html
 
 ## DB structure
 
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   meta jsonb NULL,
   context_id double precision NOT NULL DEFAULT random(),
   attempts smallint NOT NULL DEFAULT 0,
+  is_event bool NOT NULL DEFAULT false,
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
 );
 
@@ -33,11 +35,26 @@ CREATE INDEX pg_trx_outbox_not_processed_idx
   WHERE (processed = false);
 ```
 
+## Types of DB entities
+
+### Command
+
+* Command it's row when `is_event = false`
+* Command handled by one consumer only once (at least once in theory), Postgres SQL `for update` used for row locking
+* Usually used for third-party integration
+* May propagate events or another commands in same transaction
+
+### Event
+
+* Event it's row when `is_event = true`
+* Same event wlll be handled by all consumers
+* Usually used for DB denormalization, cache creation, etc
+
 ## Modes
 
 ### Short polling mode
 
-Messages polled from PostgreSQL using `FOR UPDATE NOWAIT` with `COMMIT` order. This batch of messaged produced to destination. Then messages marked as `processed`. This mode used by default.
+Messages polled from PostgreSQL using `FOR UPDATE` with `COMMIT` order. This batch of messaged produced to destination. Then messages marked as `processed`. This mode used by default.
 
 #### Short polling example
 
@@ -54,7 +71,8 @@ const pgTrxOutbox = new PgTrxOutbox({
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
     limit: 50, // how much messages in batch, default 50
     onError(err) {/**/} // callback for catching uncaught error
-  }
+  },
+  eventSourcingOptions: {/* [2] */}
 });
 
 await pgTrxOutbox.start();
@@ -65,6 +83,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L85
 
 ### Notify mode
 
@@ -104,7 +123,8 @@ const pgTrxOutbox = new PgTrxOutbox({
     pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
     limit: 50, // how much messages in batch, default 50
     onError(err) {/**/} // callback for catching uncaught error
-  }
+  },
+  eventSourcingOptions: {/* [2] */}
 });
 
 await pgTrxOutbox.start();
@@ -115,6 +135,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L85
 
 ## Create custom adapter for destination
 
@@ -173,7 +194,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 #### Built-in adapters for message handling order
 
@@ -227,7 +248,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ##### ParallelAdapter example
 
@@ -279,7 +300,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 
 ##### GroupedAdapter example
@@ -334,7 +355,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ## Wait response of specific message
 
@@ -379,7 +400,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ## Partitioning
 
@@ -468,7 +489,7 @@ await pgTrxOutbox1.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ## Built-in messages meta
 
@@ -544,7 +565,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 - [3] https://nodejs.org/dist/latest-v20.x/docs/api/async_context.html#class-asynclocalstorage
 
 ## Filter messages handling by topic
@@ -592,7 +613,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ## Scheduling of messages
 
@@ -629,7 +650,7 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
 ## Retrying of errors
 
@@ -669,4 +690,4 @@ await pgTrxOutbox.stop();
 ```
 
 - [1] https://node-postgres.com/apis/pool
-- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L32
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
