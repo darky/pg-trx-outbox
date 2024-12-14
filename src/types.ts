@@ -45,14 +45,6 @@ export type Options = {
      */
     pollInterval?: number
     /**
-     * how often to process new messages in 'logical' mode, default 100 milliseconds
-     */
-    logicalBatchInterval?: number
-    /**
-     * how often to process responses of messages, default 100 milliseconds
-     */
-    respondInterval?: number
-    /**
      * how much messages send for processing, default 50
      */
     limit?: number
