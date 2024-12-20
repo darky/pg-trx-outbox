@@ -1,4 +1,4 @@
-import { Pool, QueryResultRow } from 'pg'
+import { Pool } from 'pg'
 import type { Options, StartStop } from './types.ts'
 
 export class Pg implements StartStop {
@@ -10,10 +10,6 @@ export class Pg implements StartStop {
       ...options.pgOptions,
     })
     this.pool.on('error', err => options.outboxOptions?.onError?.(err))
-  }
-
-  query<T extends QueryResultRow>(sql: string, values: unknown[]) {
-    return this.pool.query<T>(sql, values)
   }
 
   getClient() {

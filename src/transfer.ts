@@ -27,11 +27,8 @@ export class Transfer {
         const processed = []
         const attempts = []
         const sinceAt = []
-        for (const [i, message] of messages.entries()) {
-          if (message.is_event) {
-            continue
-          }
-          const resp = results[i] ?? thr(new Error('Result not exists for message'))
+        for (const [i, resp] of results.entries()) {
+          const message = messages[i] ?? thr(new Error('Message not exists for result'))
           ids.push(message.id)
           metas.push(resp.meta ?? null)
           responses.push(
@@ -61,17 +58,16 @@ export class Transfer {
       }
     } catch (e) {
       if ((e as { code: string }).code !== '55P03') {
-        const messagesCommands = messages.filter(m => !m.is_event)
-        if (messagesCommands.length) {
+        if (messages.length) {
           await this.updateToProcessed(
             client,
-            messagesCommands.map(r => r.id),
-            messagesCommands.map(() => null),
-            messagesCommands.map(() => (e as Error).stack ?? (e as Error).message ?? e),
-            messagesCommands.map(() => null),
-            messagesCommands.map(() => true),
-            messagesCommands.map(m => m.attempts),
-            messagesCommands.map(m => m.since_at)
+            messages.map(r => r.id),
+            messages.map(() => null),
+            messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+            messages.map(() => null),
+            messages.map(() => true),
+            messages.map(m => m.attempts),
+            messages.map(m => m.since_at)
           )
         }
         throw e
@@ -84,64 +80,35 @@ export class Transfer {
   }
 
   private async fetchPgMessages(client: PoolClient) {
-    return await Promise.all([
-      client
-        .query<OutboxMessage>(
-          `
-            select
-              id,
-              topic,
-              key,
-              value,
-              context_id,
-              error,
-              attempts,
-              since_at,
-              is_event
-            from pg_trx_outbox${
-              this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
-            }
-            where not is_event and processed = false and (since_at is null or now() > since_at) ${
-              this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''
-            }
-            order by id
-            limit $1
-            for update nowait
-          `,
-          [
-            this.options.outboxOptions?.limit ?? 50,
-            ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
-          ]
-        )
-        .then(resp => resp.rows),
-      client
-        .query<OutboxMessage>(
-          `
-            select
-              id,
-              topic,
-              key,
-              value,
-              context_id,
-              error,
-              attempts,
-              since_at,
-              is_event
-            from pg_trx_outbox${
-              this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
-            }
-            where is_event and id > $2 ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
-            order by id
-            limit $1
-          `,
-          [
-            this.options.outboxOptions?.limit ?? 50,
-            this.es.getLastEventId(),
-            ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
-          ]
-        )
-        .then(resp => resp.rows),
-    ]).then(rows => rows.flat().toSorted((m1, m2) => Number(m1.id) - Number(m2.id)))
+    return await client
+      .query<OutboxMessage>(
+        `
+          select
+            id,
+            topic,
+            key,
+            value,
+            context_id,
+            error,
+            attempts,
+            since_at
+          from pg_trx_outbox${
+            this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+          }
+          where (is_event = false and processed = false and (since_at is null or now() > since_at)
+            or is_event = true and id > $2)
+          ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
+          order by id
+          limit $1
+          for update nowait
+        `,
+        [
+          this.options.outboxOptions?.limit ?? 50,
+          this.es.getLastEventId(),
+          ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
+        ]
+      )
+      .then(resp => resp.rows)
   }
 
   private async updateToProcessed(

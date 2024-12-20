@@ -7,7 +7,11 @@ export class FSM {
 
   private fsm = interpret(
     createMachine('wait', {
-      wait: state(transition('poll', 'processing'), transition('notify', 'processing')),
+      wait: state(
+        transition('more', 'processing'),
+        transition('poll', 'processing'),
+        transition('notify', 'processing')
+      ),
       processing: invoke(
         () => this.transfer.transferMessages(),
         transition('done', 'wait'),

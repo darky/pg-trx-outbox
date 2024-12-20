@@ -251,7 +251,7 @@ test('events should be reconsumed by another consumer', async () => {
   assert.deepStrictEqual(messages.toSorted(), ['test', 'test', 'test2', 'test3', 'test3'])
 })
 
-test('should not mutate events', async () => {
+test('should mutate events', async () => {
   pgTrxOutbox = new PgTrxOutbox({
     adapter: new (class extends SerialAdapter {
       async start() {}
@@ -288,11 +288,11 @@ test('should not mutate events', async () => {
 
   const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox where is_event order by id').then(r => r.rows)
 
-  assert.strictEqual(resp[0]?.processed, false)
-  assert.strictEqual(resp[0]?.response, null)
+  assert.strictEqual(resp[0]?.processed, true)
+  assert.deepStrictEqual(resp[0]?.response, { success: true })
   assert.strictEqual(resp[0]?.error, null)
 
-  assert.strictEqual(resp[1]?.processed, false)
-  assert.strictEqual(resp[1]?.response, null)
+  assert.strictEqual(resp[1]?.processed, true)
+  assert.deepStrictEqual(resp[1]?.response, { success: true })
   assert.strictEqual(resp[1]?.error, null)
 })
