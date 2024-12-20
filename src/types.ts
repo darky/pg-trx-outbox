@@ -17,6 +17,7 @@ export type OutboxMessage = {
   headers: Record<string, string> | null
   attempts: number
   since_at: Date | null
+  is_event: boolean
 }
 
 export interface StartStop {

@@ -12,12 +12,12 @@ export class Transfer {
     private readonly es: Es
   ) {}
 
-  async transferMessages(passedMessages: readonly OutboxMessage[] = []) {
+  async transferMessages() {
     let messages: readonly OutboxMessage[] = []
     const client = await this.pg.getClient()
     try {
       await client.query('begin')
-      messages = passedMessages.length ? passedMessages : await this.fetchPgMessages(client)
+      messages = await this.fetchPgMessages(client)
       if (messages.length) {
         const results = await this.adapter.send(messages)
         const ids = []
@@ -27,25 +27,28 @@ export class Transfer {
         const processed = []
         const attempts = []
         const sinceAt = []
-        for (const [i, r] of results.entries()) {
-          const message = messages[i] ?? thr(new Error('Message not exists for response'))
+        for (const [i, message] of messages.entries()) {
+          if (message.is_event) {
+            continue
+          }
+          const resp = results[i] ?? thr(new Error('Result not exists for message'))
           ids.push(message.id)
-          metas.push(r.meta ?? null)
+          metas.push(resp.meta ?? null)
           responses.push(
-            r.status === 'fulfilled'
-              ? typeof r.value === 'string' || Array.isArray(r.value)
-                ? { r: r.value }
-                : r.value
+            resp.status === 'fulfilled'
+              ? typeof resp.value === 'string' || Array.isArray(resp.value)
+                ? { r: resp.value }
+                : resp.value
               : null
           )
           errors.push(
-            r.status === 'rejected'
-              ? (r.reason as Error).stack ?? (r.reason as Error).message ?? r.reason
+            resp.status === 'rejected'
+              ? (resp.reason as Error).stack ?? (resp.reason as Error).message ?? resp.reason
               : message.error
           )
           const needRetry =
-            r.status === 'rejected' &&
-            this.options.outboxOptions?.retryError?.(r.reason) &&
+            resp.status === 'rejected' &&
+            this.options.outboxOptions?.retryError?.(resp.reason) &&
             message.attempts < (this.options.outboxOptions?.retryMaxAttempts ?? 5)
           processed.push(!needRetry)
           attempts.push(message.attempts + (needRetry ? 1 : 0))
@@ -57,16 +60,17 @@ export class Transfer {
         this.es.setLastEventId(messages.at(-1)?.id ?? '0')
       }
     } catch (e) {
-      if (messages.length) {
+      const messagesCommands = messages.filter(m => !m.is_event)
+      if (messagesCommands.length) {
         await this.updateToProcessed(
           client,
-          messages.map(r => r.id),
-          messages.map(() => null),
-          messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
-          messages.map(() => null),
-          messages.map(() => true),
-          messages.map(m => m.attempts),
-          messages.map(m => m.since_at)
+          messagesCommands.map(r => r.id),
+          messagesCommands.map(() => null),
+          messagesCommands.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+          messagesCommands.map(() => null),
+          messagesCommands.map(() => true),
+          messagesCommands.map(m => m.attempts),
+          messagesCommands.map(m => m.since_at)
         )
       }
       throw e
@@ -78,35 +82,71 @@ export class Transfer {
   }
 
   private async fetchPgMessages(client: PoolClient) {
-    return await client
-      .query<OutboxMessage>(
-        `
-          select
-            id,
-            topic,
-            key,
-            value,
-            context_id,
-            error,
-            attempts,
-            since_at
-          from pg_trx_outbox${
-            this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+    return await Promise.all([
+      client
+        .query<OutboxMessage>(
+          `
+            select
+              id,
+              topic,
+              key,
+              value,
+              context_id,
+              error,
+              attempts,
+              since_at,
+              is_event
+            from pg_trx_outbox${
+              this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+            }
+            where not is_event and processed = false and (since_at is null or now() > since_at) ${
+              this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''
+            }
+            order by id
+            limit $1
+            for update nowait
+          `,
+          [
+            this.options.outboxOptions?.limit ?? 50,
+            ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
+          ]
+        )
+        .then(resp => resp.rows)
+        .catch(e => {
+          console.log(111111, e)
+          if ((e as { code: string }).code === '55P03') {
+            return []
           }
-          where not is_event and processed = false and (since_at is null or now() > since_at) ${
-            this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''
-          } or is_event and id > $2
-          order by id
-          limit $1
-          for update
-        `,
-        [
-          this.options.outboxOptions?.limit ?? 50,
-          this.es.getLastEventId(),
-          ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
-        ]
-      )
-      .then(resp => resp.rows)
+          throw e
+        }),
+      client
+        .query<OutboxMessage>(
+          `
+            select
+              id,
+              topic,
+              key,
+              value,
+              context_id,
+              error,
+              attempts,
+              since_at,
+              is_event
+            from pg_trx_outbox${
+              this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+            }
+            where is_event and id > $2 ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
+            order by id
+            limit $1
+          `,
+          [
+            this.options.outboxOptions?.limit ?? 50,
+            this.es.getLastEventId(),
+            ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
+          ]
+        )
+        .then(resp => resp.rows),
+    ]).then(rows => rows.flat().toSorted((m1, m2) => Number(m1.id) - Number(m2.id)))
   }
 
   private async updateToProcessed(

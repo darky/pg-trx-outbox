@@ -54,7 +54,9 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await pgTrxOutbox.stop()
-  pgTrxOutbox2! && (await pgTrxOutbox2!.stop())
+  try {
+    pgTrxOutbox2! && (await pgTrxOutbox2!.stop())
+  } catch (e) {}
   await pg.end()
 })
 
@@ -247,4 +249,50 @@ test('events should be reconsumed by another consumer', async () => {
   await setTimeout(1000)
 
   assert.deepStrictEqual(messages.toSorted(), ['test', 'test', 'test2', 'test3', 'test3'])
+})
+
+test('should not mutate events', async () => {
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: new (class extends SerialAdapter {
+      async start() {}
+      async stop() {}
+      override async onHandled(): Promise<void> {}
+      async handleMessage() {
+        return { value: { success: true } }
+      }
+    })(),
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value, is_event)
+      VALUES
+        ('pg.trx.outbox', 'testKey', '{"test": true}', true),
+        ('pg.trx.outbox', 'testKey', '{"test2": true}', false),
+        ('pg.trx.outbox', 'testKey', '{"test3": true}', true)
+    `
+  )
+
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox where is_event order by id').then(r => r.rows)
+
+  assert.strictEqual(resp[0]?.processed, false)
+  assert.strictEqual(resp[0]?.response, null)
+  assert.strictEqual(resp[0]?.error, null)
+
+  assert.strictEqual(resp[1]?.processed, false)
+  assert.strictEqual(resp[1]?.response, null)
+  assert.strictEqual(resp[1]?.error, null)
 })

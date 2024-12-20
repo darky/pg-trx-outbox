@@ -64,7 +64,10 @@ test('basic contextId persistance works', async () => {
       async stop() {},
       async onHandled() {},
       async send() {
-        return []
+        return [
+          { status: 'fulfilled', value: true },
+          { status: 'fulfilled', value: true },
+        ]
       },
     },
     pgOptions: {
