@@ -113,7 +113,6 @@ export class Transfer {
         )
         .then(resp => resp.rows)
         .catch(e => {
-          console.log(111111, e)
           if ((e as { code: string }).code === '55P03') {
             return []
           }
