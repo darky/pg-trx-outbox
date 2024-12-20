@@ -60,20 +60,22 @@ export class Transfer {
         this.es.setLastEventId(messages.at(-1)?.id ?? '0')
       }
     } catch (e) {
-      const messagesCommands = messages.filter(m => !m.is_event)
-      if (messagesCommands.length) {
-        await this.updateToProcessed(
-          client,
-          messagesCommands.map(r => r.id),
-          messagesCommands.map(() => null),
-          messagesCommands.map(() => (e as Error).stack ?? (e as Error).message ?? e),
-          messagesCommands.map(() => null),
-          messagesCommands.map(() => true),
-          messagesCommands.map(m => m.attempts),
-          messagesCommands.map(m => m.since_at)
-        )
+      if ((e as { code: string }).code !== '55P03') {
+        const messagesCommands = messages.filter(m => !m.is_event)
+        if (messagesCommands.length) {
+          await this.updateToProcessed(
+            client,
+            messagesCommands.map(r => r.id),
+            messagesCommands.map(() => null),
+            messagesCommands.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+            messagesCommands.map(() => null),
+            messagesCommands.map(() => true),
+            messagesCommands.map(m => m.attempts),
+            messagesCommands.map(m => m.since_at)
+          )
+        }
+        throw e
       }
-      throw e
     } finally {
       await client.query('commit')
       client.release()
@@ -111,13 +113,7 @@ export class Transfer {
             ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
           ]
         )
-        .then(resp => resp.rows)
-        .catch(e => {
-          if ((e as { code: string }).code === '55P03') {
-            return []
-          }
-          throw e
-        }),
+        .then(resp => resp.rows),
       client
         .query<OutboxMessage>(
           `
