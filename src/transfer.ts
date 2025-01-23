@@ -3,6 +3,8 @@ import { Pg } from './pg.ts'
 import type { Adapter, Options, OutboxMessage } from './types.ts'
 import thr from 'throw'
 import type { Es } from './es.ts'
+import { match, P } from 'ts-pattern'
+import { inspect } from 'node:util'
 
 export class Transfer {
   constructor(
@@ -38,11 +40,7 @@ export class Transfer {
                 : resp.value
               : null
           )
-          errors.push(
-            resp.status === 'rejected'
-              ? (resp.reason as Error).stack ?? (resp.reason as Error).message ?? resp.reason
-              : message.error
-          )
+          errors.push(resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
           const needRetry =
             resp.status === 'rejected' &&
             this.options.outboxOptions?.retryError?.(resp.reason) &&
@@ -63,7 +61,7 @@ export class Transfer {
             client,
             messages.map(r => r.id),
             messages.map(() => null),
-            messages.map(() => (e as Error).stack ?? (e as Error).message ?? e),
+            messages.map(() => this.normalizeError(e)),
             messages.map(() => null),
             messages.map(() => true),
             messages.map(m => m.attempts),
@@ -77,6 +75,13 @@ export class Transfer {
       client.release()
     }
     await this.adapter.onHandled(messages)
+  }
+
+  private normalizeError(error: unknown) {
+    return match(error)
+      .with({ stack: P.string }, ({ stack }) => stack)
+      .with(P.string, err => err)
+      .otherwise(err => inspect(err))
   }
 
   private async fetchPgMessages(client: PoolClient) {
