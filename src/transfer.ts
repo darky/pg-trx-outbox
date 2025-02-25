@@ -105,7 +105,7 @@ export class Transfer {
           ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
           order by id
           limit $1
-          for update nowait
+          for update
         `,
         [
           this.options.outboxOptions?.limit ?? 50,
