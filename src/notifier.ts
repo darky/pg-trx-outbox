@@ -1,6 +1,7 @@
 import type { Subscriber } from 'pg-listen'
 import type { Options, StartStop } from './types.ts'
 import type { FSM } from './fsm.ts'
+import { appName } from './app-name.ts'
 
 export class Notifier implements StartStop {
   private notifier!: Subscriber
@@ -9,7 +10,7 @@ export class Notifier implements StartStop {
     import('pg-listen').then(({ default: createSubscriber }) => {
       this.notifier = createSubscriber(
         {
-          application_name: 'pg_trx_outbox_pubsub',
+          application_name: `pg_trx_outbox_pubsub_${appName}`,
           ...options.pgOptions,
         },
         { paranoidChecking: options.outboxOptions?.pollInterval ?? 30_000 }
