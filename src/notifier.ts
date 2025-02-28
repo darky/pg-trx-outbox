@@ -8,13 +8,10 @@ export class Notifier implements StartStop {
 
   constructor(options: Options, private fsm: FSM) {
     import('pg-listen').then(({ default: createSubscriber }) => {
-      this.notifier = createSubscriber(
-        {
-          application_name: `pg_trx_outbox_pubsub_${appName}`,
-          ...options.pgOptions,
-        },
-        { paranoidChecking: options.outboxOptions?.pollInterval ?? 30_000 }
-      )
+      this.notifier = createSubscriber({
+        application_name: `pg_trx_outbox_pubsub_${appName}`,
+        ...options.pgOptions,
+      })
       this.notifier.events.on('error', err => options.outboxOptions?.onError?.(err))
     })
   }
