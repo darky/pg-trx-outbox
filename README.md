@@ -646,3 +646,7 @@ await pgTrxOutbox.stop();
 
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
+
+## Debugging
+
+Set the `DEBUG` environment variable to `pg-trx-outbox:*` to enable debug logging.
