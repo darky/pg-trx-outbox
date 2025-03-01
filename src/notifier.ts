@@ -5,8 +5,10 @@ import { appName } from './app-name.ts'
 
 export class Notifier implements StartStop {
   private notifier!: Subscriber
+  private fsm: FSM
 
-  constructor(options: Options, private fsm: FSM) {
+  constructor(options: Options, fsm: FSM) {
+    this.fsm = fsm
     import('pg-listen').then(({ default: createSubscriber }) => {
       this.notifier = createSubscriber({
         application_name: `pg_trx_outbox_pubsub_${appName}`,

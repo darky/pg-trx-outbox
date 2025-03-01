@@ -4,8 +4,15 @@ import Cursor from 'pg-cursor'
 
 export class Es implements StartStop {
   private lastEventId = '0'
+  private pg: Pg
+  private adapter: Adapter
+  private options: Options
 
-  constructor(private readonly pg: Pg, private readonly adapter: Adapter, private readonly options: Options) {}
+  constructor(pg: Pg, adapter: Adapter, options: Options) {
+    this.pg = pg
+    this.adapter = adapter
+    this.options = options
+  }
 
   async start() {
     await this.initSync()

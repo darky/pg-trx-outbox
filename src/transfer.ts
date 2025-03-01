@@ -7,12 +7,17 @@ import { match, P } from 'ts-pattern'
 import { inspect } from 'node:util'
 
 export class Transfer {
-  constructor(
-    private readonly options: Options,
-    private readonly pg: Pg,
-    private readonly adapter: Adapter,
-    private readonly es: Es
-  ) {}
+  private readonly options: Options
+  private readonly pg: Pg
+  private readonly adapter: Adapter
+  private readonly es: Es
+
+  constructor(options: Options, pg: Pg, adapter: Adapter, es: Es) {
+    this.options = options
+    this.pg = pg
+    this.adapter = adapter
+    this.es = es
+  }
 
   async transferMessages() {
     let messages: readonly OutboxMessage[] = []

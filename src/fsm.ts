@@ -5,7 +5,13 @@ import type { Options } from './types.ts'
 type Transition = 'more' | 'poll' | 'notify'
 
 export class FSM {
-  constructor(private options: Options, private transfer: Transfer) {}
+  private options: Options
+  private transfer: Transfer
+
+  constructor(options: Options, transfer: Transfer) {
+    this.options = options
+    this.transfer = transfer
+  }
 
   private fsm = interpret(
     createMachine('wait', {
