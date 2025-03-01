@@ -32,6 +32,7 @@
   "license": "MIT",
   "dependencies": {
     "debug": "^4.4.0",
+    "p-queue": "^8.1.0",
     "pg": "^8.13.3",
     "pg-cursor": "^2.12.3",
     "robot3": "^1.1.1",

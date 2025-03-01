@@ -41,6 +41,7 @@ export class PgTrxOutbox implements StartStop {
   }
 
   async start() {
+    await this.transfer.start()
     await this.adapter.start()
     await this.pg.start()
     await this.es.start()
@@ -52,6 +53,7 @@ export class PgTrxOutbox implements StartStop {
     await this.es.stop()
     await this.notifier?.stop()
     await this.poller?.stop()
+    await this.transfer.stop()
     await this.pg.stop()
     await this.adapter.stop()
   }

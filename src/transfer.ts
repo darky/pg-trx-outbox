@@ -1,15 +1,17 @@
 import type { PoolClient } from 'pg'
 import { Pg } from './pg.ts'
-import type { Adapter, Options, OutboxMessage } from './types.ts'
+import type { Adapter, Options, OutboxMessage, StartStop } from './types.ts'
 import thr from 'throw'
 import type { Es } from './es.ts'
 import { match, P } from 'ts-pattern'
 import { inspect } from 'node:util'
 import debug from 'debug'
 import { appName } from './app-name.ts'
+import type PQueue from 'p-queue'
 
-export class Transfer {
+export class Transfer implements StartStop {
   private logger = debug(`pg-trx-outbox:${appName}`)
+  private queue!: PQueue
 
   private readonly options: Options
   private readonly pg: Pg
@@ -23,69 +25,84 @@ export class Transfer {
     this.pg = pg
     this.adapter = adapter
     this.es = es
+
+    import('p-queue').then(({ default: PQueue }) => (this.queue = new PQueue({ concurrency: 1 })))
+  }
+
+  async start() {}
+
+  async stop() {
+    this.queue.clear()
+    await this.queue.onIdle()
   }
 
   async transferMessages() {
-    let messages: readonly OutboxMessage[] = []
-    const client = await this.pg.getClient()
-    try {
-      await client.query('begin')
-      messages = await this.fetchPgMessages(client)
-      if (messages.length) {
-        const results = await this.adapter.send(messages)
-        const ids = []
-        const responses = []
-        const errors = []
-        const metas = []
-        const processed = []
-        const attempts = []
-        const sinceAt = []
-        for (const [i, resp] of results.entries()) {
-          const message = messages[i] ?? thr(new Error('Message not exists for result'))
-          ids.push(message.id)
-          metas.push(resp.meta ?? null)
-          responses.push(
-            resp.status === 'fulfilled'
-              ? typeof resp.value === 'string' || Array.isArray(resp.value)
-                ? { r: resp.value }
-                : resp.value
-              : null
-          )
-          errors.push(resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
-          const needRetry =
-            resp.status === 'rejected' &&
-            this.options.outboxOptions?.retryError?.(resp.reason) &&
-            message.attempts < (this.options.outboxOptions?.retryMaxAttempts ?? 5)
-          processed.push(!needRetry)
-          attempts.push(message.attempts + (needRetry ? 1 : 0))
-          sinceAt.push(
-            needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
-          )
-        }
-        await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt)
-        this.es.setLastEventId(messages.at(-1)?.id ?? '0')
-      }
-    } catch (e) {
-      if ((e as { code: string }).code !== '55P03') {
-        if (messages.length) {
-          await this.updateToProcessed(
-            client,
-            messages.map(r => r.id),
-            messages.map(() => null),
-            messages.map(() => this.normalizeError(e)),
-            messages.map(() => null),
-            messages.map(() => true),
-            messages.map(m => m.attempts),
-            messages.map(m => m.since_at)
-          )
-        }
-        throw e
-      }
-    } finally {
-      await client.query('commit')
-      client.release()
+    if (this.queue.pending + this.queue.size >= 2) {
+      return
     }
-    await this.adapter.onHandled(messages)
+
+    await this.queue.add(async () => {
+      let messages: readonly OutboxMessage[] = []
+      const client = await this.pg.getClient()
+      try {
+        await client.query('begin')
+        messages = await this.fetchPgMessages(client)
+        if (messages.length) {
+          const results = await this.adapter.send(messages)
+          const ids = []
+          const responses = []
+          const errors = []
+          const metas = []
+          const processed = []
+          const attempts = []
+          const sinceAt = []
+          for (const [i, resp] of results.entries()) {
+            const message = messages[i] ?? thr(new Error('Message not exists for result'))
+            ids.push(message.id)
+            metas.push(resp.meta ?? null)
+            responses.push(
+              resp.status === 'fulfilled'
+                ? typeof resp.value === 'string' || Array.isArray(resp.value)
+                  ? { r: resp.value }
+                  : resp.value
+                : null
+            )
+            errors.push(resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
+            const needRetry =
+              resp.status === 'rejected' &&
+              this.options.outboxOptions?.retryError?.(resp.reason) &&
+              message.attempts < (this.options.outboxOptions?.retryMaxAttempts ?? 5)
+            processed.push(!needRetry)
+            attempts.push(message.attempts + (needRetry ? 1 : 0))
+            sinceAt.push(
+              needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
+            )
+          }
+          await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt)
+          this.es.setLastEventId(messages.at(-1)?.id ?? '0')
+        }
+      } catch (e) {
+        if ((e as { code: string }).code !== '55P03') {
+          if (messages.length) {
+            await this.updateToProcessed(
+              client,
+              messages.map(r => r.id),
+              messages.map(() => null),
+              messages.map(() => this.normalizeError(e)),
+              messages.map(() => null),
+              messages.map(() => true),
+              messages.map(m => m.attempts),
+              messages.map(m => m.since_at)
+            )
+          }
+          throw e
+        }
+      } finally {
+        await client.query('commit')
+        client.release()
+      }
+      await this.adapter.onHandled(messages)
+    })
   }
 
   private normalizeError(error: unknown) {
