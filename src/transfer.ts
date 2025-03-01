@@ -5,14 +5,20 @@ import thr from 'throw'
 import type { Es } from './es.ts'
 import { match, P } from 'ts-pattern'
 import { inspect } from 'node:util'
+import debug from 'debug'
+import { appName } from './app-name.ts'
 
 export class Transfer {
+  private logger = debug(`pg-trx-outbox:${appName}`)
+
   private readonly options: Options
   private readonly pg: Pg
   private readonly adapter: Adapter
   private readonly es: Es
 
   constructor(options: Options, pg: Pg, adapter: Adapter, es: Es) {
+    this.logger.log = console.log.bind(console)
+
     this.options = options
     this.pg = pg
     this.adapter = adapter
@@ -90,35 +96,45 @@ export class Transfer {
   }
 
   private async fetchPgMessages(client: PoolClient) {
-    return await client
-      .query<OutboxMessage>(
-        `
-          select
-            id,
-            topic,
-            key,
-            value,
-            context_id,
-            error,
-            attempts,
-            since_at
-          from pg_trx_outbox${
-            this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
-          }
-          where (is_event = false and processed = false and (since_at is null or now() > since_at)
-            or is_event = true and id > $2)
-          ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
-          order by id
-          limit $1
-          for update
-        `,
-        [
-          this.options.outboxOptions?.limit ?? 50,
-          this.es.getLastEventId(),
-          ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
-        ]
-      )
-      .then(resp => resp.rows)
+    const limit = this.options.outboxOptions?.limit ?? 50
+    const lastEventId = this.es.getLastEventId()
+
+    this.logger('fetching of messages, limit %d, from event id %d', limit, lastEventId)
+
+    const resp = await client.query<OutboxMessage>(
+      `
+        select
+          id,
+          topic,
+          key,
+          value,
+          context_id,
+          error,
+          attempts,
+          since_at
+        from pg_trx_outbox${
+          this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
+        }
+        where (is_event = false and processed = false and (since_at is null or now() > since_at)
+          or is_event = true and id > $2)
+        ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
+        order by id
+        limit $1
+        for update
+      `,
+      [
+        limit,
+        lastEventId,
+        ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
+      ]
+    )
+
+    this.logger(
+      'received messages with ids %o',
+      resp.rows.map(r => r.id)
+    )
+
+    return resp.rows
   }
 
   private async updateToProcessed(

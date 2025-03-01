@@ -31,6 +31,7 @@
   "author": "Vladislav Botvin",
   "license": "MIT",
   "dependencies": {
+    "debug": "^4.4.0",
     "pg": "^8.13.3",
     "pg-cursor": "^2.12.3",
     "robot3": "^1.1.1",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.18.0",
+    "@types/debug": "^4.1.12",
     "@types/node": "^22.13.8",
     "@types/pg": "^8.11.11",
     "@types/pg-cursor": "^2.7.2",
