@@ -5,7 +5,7 @@
   "main": "./dist/src/index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "test": "node --test --test-concurrency 1 ./dist/test/*.js",
+    "test": "DEBUG=* node --test --test-concurrency 1 ./dist/test/*.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
