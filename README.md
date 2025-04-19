@@ -647,6 +647,44 @@ await pgTrxOutbox.stop();
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
+## Compressed events
+
+Events can be compresed with particular batch size for speed up of initial events consuming
+
+* $1 - array of filter by topic
+* $2 - chunk size (e.g. 50 or 100 or ...)
+
+```sql
+with with_pre_batch_ids as (
+  select
+    id, topic, value,
+    case when lag(topic) over(order by id asc) is null or lag(topic) over(order by id asc) = topic
+      then 0
+      else 1
+    end pre_batch_id
+  from pg_trx_outbox
+  where is_event and topic = any($1)
+  order by id asc
+), with_batch_ids as (
+  select
+    id, topic, value,
+    sum(pre_batch_id) over (order by id asc) batch_id
+  from with_pre_batch_ids
+), with_chunk_ids as (
+  select
+    id, topic, value, batch_id,
+    ceil((row_number() over(partition by topic, batch_id order by id asc) - 1) / $2) chunk_id
+  from with_batch_ids
+  order by id asc
+)
+select
+  (array_agg(id))[1] min_id,
+  topic,
+  jsonb_agg(value) value
+from with_chunk_ids
+group by batch_id, chunk_id, topic
+```
+
 ## Debugging
 
 Set the `DEBUG` environment variable to `pg-trx-outbox:*` to enable debug logging.
