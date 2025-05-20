@@ -419,24 +419,6 @@ const pgTrxOutbox1 = new PgTrxOutbox({
 await pgTrxOutbox0.start();
 await pgTrxOutbox1.start();
 
-const [{ id } = { id: '' }] = await pg
-  .query<{ id: string }>(
-    `
-      INSERT INTO pg_trx_outbox (topic, "key", value)
-      VALUES ('some.topic', 'someKey', '{"someValue": true}')
-      RETURNING id;
-    `
-  )
-  .then(resp => resp.rows)
-
-try {
-  // waitResponse can handle response from any partition
-  // key passing will prune unnecessary partitions
-  const waitResp = await pgTrxOutbox0.waitResponse<{someValue: boolean}>(id, 'someKey')
-} catch(e) {
-  // if error will be happens on message handling
-}
-
 // on shutdown
 
 await pgTrxOutbox0.stop();
