@@ -2,7 +2,7 @@ import { action, createMachine, interpret, invoke, state, transition } from 'rob
 import type { Transfer } from './transfer.ts'
 import type { Options } from './types.ts'
 
-type Transition = 'more' | 'poll' | 'notify'
+type Transition = 'poll' | 'notify' | 'manual'
 
 export class FSM {
   private options: Options
@@ -16,9 +16,9 @@ export class FSM {
   private fsm = interpret(
     createMachine('wait', {
       wait: state(
-        transition('more' as Transition, 'processing'),
         transition('poll', 'processing'),
-        transition('notify', 'processing')
+        transition('notify', 'processing'),
+        transition('manual', 'processing')
       ),
       processing: invoke(
         () => this.transfer.transferMessages(),
