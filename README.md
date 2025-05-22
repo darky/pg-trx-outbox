@@ -137,6 +137,41 @@ await pgTrxOutbox.stop();
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L85
 
+### Manual trigger of events consuming
+
+You can trigger events consuming manually via `pgTrxOutbox.fetchEvents()`.
+
+#### Manual trigger of events example
+
+##### Code
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(), // about adapters see below
+  outboxOptions: {
+    mode: 'short-polling',
+    pollInterval: 5000, // how often to poll PostgreSQL for new messages, default 5000 milliseconds
+    limit: 50, // how much messages in batch, default 50
+    onError(err) {/**/} // callback for catching uncaught error
+  },
+  eventSourcingOptions: {/* [2] */}
+});
+
+await pgTrxOutbox.start();
+
+pgTrxOutbox.fetchEvents() // Trigger of events consuming manually
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L85
+
 ## Create custom adapter for destination
 
 Some adapters for Transactional Outbox destination are built-in.<br/>
