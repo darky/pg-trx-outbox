@@ -1,6 +1,6 @@
 {
   "name": "pg-trx-outbox",
-  "version": "0.15.195",
+  "version": "0.16.202",
   "description": "Transactional outbox of Postgres for Node.js with little Event Sourcing",
   "main": "./dist/src/index.js",
   "scripts": {
