@@ -40,12 +40,12 @@
     "ts-pattern": "^5.7.1"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^10.27.0",
+    "@testcontainers/postgresql": "^11.0.3",
     "@types/debug": "^4.1.12",
-    "@types/node": "^22.15.21",
-    "@types/pg": "^8.15.2",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.4",
     "@types/pg-cursor": "^2.7.2",
-    "testcontainers": "^10.27.0",
+    "testcontainers": "^11.0.3",
     "ts-fp-di": "^0.22.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
