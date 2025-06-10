@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS pg_trx_outbox (
   context_id double precision NOT NULL DEFAULT random(),
   attempts smallint NOT NULL DEFAULT 0,
   is_event bool NOT NULL DEFAULT false,
+  error_approved boolean NOT NULL DEFAULT false,
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
 );
 
@@ -421,6 +422,8 @@ CREATE TABLE pg_trx_outbox (
   meta jsonb NULL,
   context_id double precision NOT NULL DEFAULT random(),
   attempts smallint NOT NULL DEFAULT 0,
+  is_event bool NOT NULL DEFAULT false,
+  error_approved boolean NOT NULL DEFAULT false,
   CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id, key)
 ) PARTITION BY HASH (key);
 
@@ -700,6 +703,16 @@ select
   jsonb_agg(value) value
 from with_chunk_ids
 group by batch_id, chunk_id, topic
+```
+
+## Auto approving of errors
+
+Error can be approved automatically (`error_approved = true`). `error_approved` flag intended to distinguish business logic errors from unexpected. Just from `ApprovedError` 👇 for your expected business logic errors.
+
+```typescript
+class ApprovedError extends Error {
+  isApproved = true
+}
 ```
 
 ## Debugging
