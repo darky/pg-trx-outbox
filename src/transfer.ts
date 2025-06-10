@@ -56,6 +56,7 @@ export class Transfer implements StartStop {
           const processed = []
           const attempts = []
           const sinceAt = []
+          const errorApproved = []
           for (const [i, resp] of results.entries()) {
             const message = messages[i] ?? thr(new Error('Message not exists for result'))
             ids.push(message.id)
@@ -77,8 +78,19 @@ export class Transfer implements StartStop {
             sinceAt.push(
               needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
             )
+            errorApproved.push(resp.status === 'rejected' && resp.reason.isApproved)
           }
-          await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt)
+          await this.updateToProcessed(
+            client,
+            ids,
+            responses,
+            errors,
+            metas,
+            processed,
+            attempts,
+            sinceAt,
+            errorApproved
+          )
           this.es.setLastEventId(messages.at(-1)?.id ?? '0')
         }
       } catch (e) {
@@ -92,7 +104,8 @@ export class Transfer implements StartStop {
               messages.map(() => null),
               messages.map(() => true),
               messages.map(m => m.attempts),
-              messages.map(m => m.since_at)
+              messages.map(m => m.since_at),
+              messages.map(() => false)
             )
           }
           throw e
@@ -162,14 +175,15 @@ export class Transfer implements StartStop {
     meta: (object | null)[],
     done: boolean[],
     attempts: number[],
-    sinceAt: (Date | null)[]
+    sinceAt: (Date | null)[],
+    errorApproved: boolean[]
   ) {
     await client.query(
       `
         with info as (
           select *
-          from unnest($1::bigint[], $2::jsonb[], $3::text[], $4::jsonb[], $5::boolean[], $6::smallint[], $7::timestamptz[])
-          x(id, resp, err, meta, processed, attempts, since_at))
+          from unnest($1::bigint[], $2::jsonb[], $3::text[], $4::jsonb[], $5::boolean[], $6::smallint[], $7::timestamptz[], $8::boolean[])
+          x(id, resp, err, meta, processed, attempts, since_at, error_approved))
         update pg_trx_outbox${
           this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
         } p
@@ -180,10 +194,11 @@ export class Transfer implements StartStop {
           error = (select err from info where info.id = p.id limit 1),
           meta = (select meta from info where info.id = p.id limit 1),
           attempts = (select attempts from info where info.id = p.id limit 1),
-          since_at = (select since_at from info where info.id = p.id limit 1)
+          since_at = (select since_at from info where info.id = p.id limit 1),
+          error_approved = (select error_approved from info where info.id = p.id limit 1)
         where p.id = any($1)
       `,
-      [ids, responses, errors, meta, done, attempts, sinceAt]
+      [ids, responses, errors, meta, done, attempts, sinceAt, errorApproved]
     )
   }
 }

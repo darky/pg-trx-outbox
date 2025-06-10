@@ -44,6 +44,7 @@ beforeEach(async () => {
       context_id double precision NOT NULL DEFAULT random(),
       attempts smallint NOT NULL DEFAULT 0,
       is_event boolean NOT NULL DEFAULT false,
+      error_approved boolean NOT NULL DEFAULT false,
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
@@ -89,10 +90,12 @@ test('sending error', async () => {
     updated_at: Date
     response: unknown
     error: string
+    error_approved: boolean
   } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
   assert.strictEqual(processedRow.response, null)
+  assert.strictEqual(processedRow.error_approved, false)
   assert.match(processedRow.error, /Error: test/)
 })
 
@@ -131,11 +134,13 @@ test('sending object error', async () => {
     updated_at: Date
     response: unknown
     error: string
+    error_approved: boolean
   } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
   assert.strictEqual(processedRow.response, null)
   assert.strictEqual(processedRow.error, "{ error: 'error' }")
+  assert.strictEqual(processedRow.error_approved, false)
 })
 
 test('onError callback', async () => {
@@ -170,4 +175,52 @@ test('onError callback', async () => {
   await setTimeout(1000)
 
   assert.match(err.message, /relation "pg_trx_outbox" does not exist/)
+})
+
+test('approved error', async () => {
+  class ApprovedError extends Error {
+    isApproved = true
+  }
+
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async onHandled() {},
+      async send() {
+        return [{ status: 'rejected', reason: new ApprovedError('test') }]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string
+    error_approved: boolean
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, true)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response, null)
+  assert.strictEqual(processedRow.error_approved, true)
+  assert.match(processedRow.error, /Error: test/)
 })

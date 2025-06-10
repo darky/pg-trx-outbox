@@ -44,6 +44,7 @@ beforeEach(async () => {
       context_id double precision NOT NULL DEFAULT random(),
       attempts smallint NOT NULL DEFAULT 0,
       is_event boolean NOT NULL DEFAULT false,
+      error_approved boolean NOT NULL DEFAULT false,
       CONSTRAINT pg_trx_outbox_pk PRIMARY KEY (id)
     );
   `)
