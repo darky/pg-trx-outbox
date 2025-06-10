@@ -5,7 +5,7 @@ import { PgTrxOutbox } from '../src/index.ts'
 import { setTimeout } from 'timers/promises'
 import assert from 'assert'
 import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
-import { OutboxMessage } from '../src/types.ts'
+import type { OutboxMessage } from '../src/types.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client

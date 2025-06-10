@@ -3,7 +3,7 @@ import { PgTrxOutbox } from '../src/index.ts'
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Client } from 'pg'
 import assert from 'node:assert'
-import { OutboxMessage } from '../src/types.ts'
+import type { OutboxMessage } from '../src/types.ts'
 import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
 import { setTimeout } from 'node:timers/promises'
 
