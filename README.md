@@ -707,7 +707,7 @@ group by batch_id, chunk_id, topic
 
 ## Auto approving of errors
 
-Error can be approved automatically (`error_approved = true`). `error_approved` flag intended to distinguish business logic errors from unexpected. Just from `ApprovedError` 👇 for your expected business logic errors.
+Error can be approved automatically (`error_approved = true`). `error_approved` flag intended to distinguish business logic errors from unexpected. Just throw `ApprovedError` 👇 for your expected business logic errors.
 
 ```typescript
 class ApprovedError extends Error {
