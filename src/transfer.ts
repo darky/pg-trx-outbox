@@ -26,7 +26,10 @@ export class Transfer implements StartStop {
     this.adapter = adapter
     this.es = es
 
-    import('p-queue').then(({ default: PQueue }) => (this.queue = new PQueue()))
+    import('p-queue').then(
+      ({ default: PQueue }) =>
+        (this.queue = new PQueue({ concurrency: options.outboxOptions?.concurrency ? Infinity : 1 }))
+    )
   }
 
   async start() {}
