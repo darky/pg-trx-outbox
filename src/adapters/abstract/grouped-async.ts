@@ -17,7 +17,7 @@ export abstract class GroupedAsyncAdapter extends BaseAdapter implements Adapter
       if (!this.queues.has(message.key)) {
         this.queues.set(
           message.key,
-          new PQueue({ concurrency: 1 }).once('empty', () => this.queues.delete(message.key))
+          new PQueue({ concurrency: 1 }).once('idle', () => this.queues.delete(message.key))
         )
       }
       resp.push(this.queues.get(message.key)!.add(() => this.baseHandleMessage(message)))
