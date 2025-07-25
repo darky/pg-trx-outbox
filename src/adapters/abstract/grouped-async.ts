@@ -15,20 +15,13 @@ export abstract class GroupedAsyncAdapter extends BaseAdapter implements Adapter
     const resp = []
     for (const message of messages) {
       if (!this.queues.has(message.key)) {
-        this.queues.set(message.key, new PQueue({ concurrency: 1 }))
+        this.queues.set(
+          message.key,
+          new PQueue({ concurrency: 1 }).once('empty', () => this.queues.delete(message.key))
+        )
       }
       resp.push(this.queues.get(message.key)!.add(() => this.baseHandleMessage(message)))
     }
-    const result = await Promise.all(resp as ReturnType<typeof this.baseHandleMessage>[])
-    this.cleanup()
-    return result
-  }
-
-  private cleanup() {
-    for (const [key, queue] of this.queues.entries()) {
-      if (!queue.size && !queue.pending) {
-        this.queues.delete(key)
-      }
-    }
+    return await Promise.all(resp as ReturnType<typeof this.baseHandleMessage>[])
   }
 }
