@@ -26,7 +26,7 @@ export class Transfer implements StartStop {
     this.adapter = adapter
     this.es = es
 
-    import('p-queue').then(({ default: PQueue }) => (this.queue = new PQueue({ concurrency: 1 })))
+    import('p-queue').then(({ default: PQueue }) => (this.queue = new PQueue()))
   }
 
   async start() {}
@@ -37,85 +37,76 @@ export class Transfer implements StartStop {
   }
 
   async transferMessages() {
-    if (this.queue.pending + this.queue.size >= 2) {
-      return
-    }
+    await this.queue.add(async () => this.doTransferMessages('event'), { priority: 1 })
+    await this.queue.add(async () => this.doTransferMessages('command'))
+  }
 
-    await this.queue.add(async () => {
-      let messages: readonly OutboxMessage[] = []
-      const client = await this.pg.getClient()
-      try {
-        await client.query('begin')
-        messages = await this.fetchPgMessages(client)
-        if (messages.length) {
-          const results = await this.adapter.send(messages)
-          const ids = []
-          const responses = []
-          const errors = []
-          const metas = []
-          const processed = []
-          const attempts = []
-          const sinceAt = []
-          const errorApproved = []
-          for (const [i, resp] of results.entries()) {
-            const message = messages[i] ?? thr(new Error('Message not exists for result'))
-            ids.push(message.id)
-            metas.push(resp.meta ?? null)
-            responses.push(
-              resp.status === 'fulfilled'
-                ? typeof resp.value === 'string' || Array.isArray(resp.value)
-                  ? { r: resp.value }
-                  : resp.value
-                : null
-            )
-            errors.push(resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
-            const needRetry =
-              resp.status === 'rejected' &&
-              this.options.outboxOptions?.retryError?.(resp.reason) &&
-              message.attempts < (this.options.outboxOptions?.retryMaxAttempts ?? 5)
-            processed.push(!needRetry)
-            attempts.push(message.attempts + (needRetry ? 1 : 0))
-            sinceAt.push(
-              needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
-            )
-            errorApproved.push(resp.status === 'rejected' && resp.reason.isApproved ? true : false)
-          }
-          await this.updateToProcessed(
-            client,
-            ids,
-            responses,
-            errors,
-            metas,
-            processed,
-            attempts,
-            sinceAt,
-            errorApproved
+  private async doTransferMessages(mode: 'command' | 'event') {
+    let messages: readonly OutboxMessage[] = []
+    const client = await this.pg.getClient()
+    try {
+      await client.query('begin')
+      messages = await this.fetchPgMessages(client, mode)
+      if (messages.length) {
+        const results = await this.adapter.send(messages)
+        const ids = []
+        const responses = []
+        const errors = []
+        const metas = []
+        const processed = []
+        const attempts = []
+        const sinceAt = []
+        const errorApproved = []
+        for (const [i, resp] of results.entries()) {
+          const message = messages[i] ?? thr(new Error('Message not exists for result'))
+          ids.push(message.id)
+          metas.push(resp.meta ?? null)
+          responses.push(
+            resp.status === 'fulfilled'
+              ? typeof resp.value === 'string' || Array.isArray(resp.value)
+                ? { r: resp.value }
+                : resp.value
+              : null
           )
+          errors.push(resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
+          const needRetry =
+            resp.status === 'rejected' &&
+            this.options.outboxOptions?.retryError?.(resp.reason) &&
+            message.attempts < (this.options.outboxOptions?.retryMaxAttempts ?? 5)
+          processed.push(!needRetry)
+          attempts.push(message.attempts + (needRetry ? 1 : 0))
+          sinceAt.push(
+            needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
+          )
+          errorApproved.push(resp.status === 'rejected' && resp.reason.isApproved ? true : false)
+        }
+        await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt, errorApproved)
+        if (mode === 'event') {
           this.es.setLastEventId(messages.at(-1)?.id ?? '0')
         }
-      } catch (e) {
-        if ((e as { code: string }).code !== '55P03') {
-          if (messages.length) {
-            await this.updateToProcessed(
-              client,
-              messages.map(r => r.id),
-              messages.map(() => null),
-              messages.map(() => this.normalizeError(e)),
-              messages.map(() => null),
-              messages.map(() => true),
-              messages.map(m => m.attempts),
-              messages.map(m => m.since_at),
-              messages.map(() => false)
-            )
-          }
-          throw e
-        }
-      } finally {
-        await client.query('commit')
-        client.release()
       }
-      await this.adapter.onHandled(messages)
-    })
+    } catch (e) {
+      if ((e as { code: string }).code !== '55P03') {
+        if (messages.length) {
+          await this.updateToProcessed(
+            client,
+            messages.map(r => r.id),
+            messages.map(() => null),
+            messages.map(() => this.normalizeError(e)),
+            messages.map(() => null),
+            messages.map(() => true),
+            messages.map(m => m.attempts),
+            messages.map(m => m.since_at),
+            messages.map(() => false)
+          )
+        }
+        throw e
+      }
+    } finally {
+      await client.query('commit')
+      client.release()
+    }
+    await this.adapter.onHandled(messages)
   }
 
   private normalizeError(error: unknown) {
@@ -125,7 +116,7 @@ export class Transfer implements StartStop {
       .otherwise(err => inspect(err))
   }
 
-  private async fetchPgMessages(client: PoolClient) {
+  private async fetchPgMessages(client: PoolClient, mode: 'command' | 'event') {
     const limit = this.options.outboxOptions?.limit ?? 50
     const lastEventId = this.es.getLastEventId()
 
@@ -145,16 +136,21 @@ export class Transfer implements StartStop {
         from pg_trx_outbox${
           this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
         }
-        where (is_event = false and processed = false and (since_at is null or now() > since_at)
-          or is_event = true and id > $2)
-        ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}
+        where
+          ${
+            mode === 'command'
+              ? `(is_event = false and processed = false and (since_at is null or now() > since_at))
+                  ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($2)' : ''}`
+              : `(is_event = true and id > $2)
+                  ${this.options.outboxOptions?.topicFilter?.length ? 'and topic = any($3)' : ''}`
+          }
         order by id
         limit $1
-        for update
+        ${mode === 'command' ? `for update ${this.options.outboxOptions?.concurrency ? 'skip locked' : ''}` : ''}
       `,
       [
         limit,
-        lastEventId,
+        ...(mode === 'event' ? [lastEventId] : []),
         ...(this.options.outboxOptions?.topicFilter?.length ? [this.options.outboxOptions?.topicFilter] : []),
       ]
     )

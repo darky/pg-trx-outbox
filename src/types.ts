@@ -74,6 +74,10 @@ export type Options = {
      * max attempts for retry, default 5
      */
     retryMaxAttempts?: number
+    /**
+     * use concurrency during consuming of commands, default false
+     */
+    concurrency?: boolean
   }
   eventSourcingOptions?: {
     /**

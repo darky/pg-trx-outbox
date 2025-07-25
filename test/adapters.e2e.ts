@@ -7,6 +7,8 @@ import type { OutboxMessage } from '../src/types.ts'
 import { setTimeout } from 'timers/promises'
 import { SerialAdapter } from '../src/adapters/abstract/serial.ts'
 import { ParallelAdapter } from '../src/adapters/abstract/parallel.ts'
+import { GroupedAdapter } from '../src/adapters/abstract/grouped.ts'
+import { GroupedAsyncAdapter } from '../src/adapters/abstract/grouped-async.ts'
 
 let pgDocker: StartedPostgreSqlContainer
 let pg: Client
@@ -164,7 +166,7 @@ test('GroupedAdapter works', async () => {
   const handledMessages: OutboxMessage[] = []
 
   pgTrxOutbox = new PgTrxOutbox({
-    adapter: new (class extends ParallelAdapter {
+    adapter: new (class extends GroupedAdapter {
       async start() {}
       async stop() {}
       override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
@@ -185,6 +187,58 @@ test('GroupedAdapter works', async () => {
       database: pgDocker.getDatabase(),
     },
     outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"err": true}')
+    `
+  )
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+
+  assert.deepEqual(resp[0]?.response, { success: true })
+  assert.strictEqual(resp[0]?.error, null)
+
+  assert.strictEqual(resp[1]?.response, null)
+  assert.match(resp[1]?.error ?? '', /err/)
+
+  assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
+  assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
+})
+
+test('GroupedAsyncAdapter works', async () => {
+  const handledMessages: OutboxMessage[] = []
+
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: new (class extends GroupedAsyncAdapter {
+      async start() {}
+      async stop() {}
+      override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
+        messages.forEach(m => handledMessages.push(m))
+      }
+      async handleMessage(message: OutboxMessage) {
+        if ((message.value as { ok: true }).ok) {
+          return { value: { success: true } }
+        }
+        throw new Error('err')
+      }
+    })(),
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      concurrency: true,
       pollInterval: 300,
     },
   })

@@ -143,7 +143,7 @@ test('ES init sync should ignore commands', async () => {
   )
 })
 
-test('should fetch events with commands', async () => {
+test('should fetch events first then commands', async () => {
   const messages = [] as OutboxMessage[]
 
   pgTrxOutbox = new PgTrxOutbox({
@@ -183,7 +183,7 @@ test('should fetch events with commands', async () => {
 
   assert.deepStrictEqual(
     messages.map(m => m.value),
-    [{ test: true }, { test2: true }, { test3: true }]
+    [{ test: true }, { test3: true }, { test2: true }]
   )
 })
 
