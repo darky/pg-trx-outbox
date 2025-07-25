@@ -185,6 +185,7 @@ test('should fetch events first then commands', async () => {
     messages.map(m => m.value),
     [{ test: true }, { test3: true }, { test2: true }]
   )
+  assert.deepStrictEqual(pgTrxOutbox.getLastEventId(), '3')
 })
 
 test('events should be reconsumed by another consumer', async () => {
