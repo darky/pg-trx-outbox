@@ -393,6 +393,60 @@ await pgTrxOutbox.stop();
 - [1] https://node-postgres.com/apis/pool
 - [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
 
+##### GroupedAsyncAdapter example
+
+`GroupedAsyncAdapter` is like `GroupedAdapter` but concurrency works globally.
+Don't forget to pass `concurrency: true` option also
+
+```ts
+import { PgTrxOutbox } from 'pg-trx-outbox'
+import { GroupedAsyncAdapter } from 'pg-trx-outbox/dist/src/adapters/abstract/grouped'
+
+class MyOwnAdapter extends GroupedAsyncAdapter {
+  async start() {
+    // some init logic here, establish connection and so on
+  },
+  
+  async stop() {
+    // some graceful shutdown logic here, close connection and so on
+  },
+  
+  async handleMessage(message) {
+    // grouped by `key` message handling here
+    
+    // example of successful message handling
+    return { value: {someResponse: true}, status: 'fulfilled' },
+    // example of exception while message handling
+    return { reason: 'some error text', status: 'rejected' },
+    // Optional meta property can be returned
+    // which will be saved in appropriate DB column
+    return { value: {someResponse: true}, status: 'fulfilled', meta: {someMeta: true} }
+  },
+
+  async onHandled(messages) {
+    // some optional logic here for handled messages in batch
+  }
+}
+
+const pgTrxOutbox = new PgTrxOutbox({
+  pgOptions: {/* [1] */},
+  adapter: new MyOwnAdapter(),
+  outboxOptions: {
+    concurrency: true,
+    /* [2] */
+  }
+});
+
+await pgTrxOutbox.start();
+
+// on shutdown
+
+await pgTrxOutbox.stop();
+```
+
+- [1] https://node-postgres.com/apis/pool
+- [2] https://github.com/darky/pg-trx-outbox/blob/master/src/types.ts#L42
+
 ## Partitioning
 
 Over time, performance of one table `pg_trx_outbox` can be not enough.
