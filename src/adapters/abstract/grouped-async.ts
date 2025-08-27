@@ -20,7 +20,9 @@ export abstract class GroupedAsyncAdapter extends BaseAdapter implements Adapter
           new PQueue({ concurrency: 1 }).once('idle', () => this.queues.delete(message.key))
         )
       }
-      resp.push(this.queues.get(message.key)!.add(() => this.baseHandleMessage(message)))
+      resp.push(
+        this.queues.get(message.key)!.add(() => this.baseHandleMessage(message), { priority: message.is_event ? 1 : 0 })
+      )
     }
     return await Promise.all(resp as ReturnType<typeof this.baseHandleMessage>[])
   }

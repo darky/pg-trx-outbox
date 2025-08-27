@@ -135,7 +135,8 @@ export class Transfer implements StartStop {
           context_id,
           error,
           attempts,
-          since_at
+          since_at,
+          is_event
         from pg_trx_outbox${
           this.options.outboxOptions?.partition == null ? '' : `_${this.options.outboxOptions?.partition}`
         }
