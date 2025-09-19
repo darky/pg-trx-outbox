@@ -1,4 +1,4 @@
-import type { Adapter, Options, StartStop } from './types.ts'
+import type { Adapter, Options, OutboxMessage, StartStop } from './types.ts'
 import { Notifier } from './notifier.ts'
 import { Poller } from './poller.ts'
 import { Transfer } from './transfer.ts'
@@ -65,6 +65,10 @@ export class PgTrxOutbox implements StartStop {
 
   getLastEventId() {
     return this.es.getLastEventId()
+  }
+
+  setLastEventId(id: OutboxMessage['id']) {
+    return this.es.setLastEventId(id)
   }
 
   fetchEvents() {

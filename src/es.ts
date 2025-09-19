@@ -20,8 +20,8 @@ export class Es implements StartStop {
 
   async stop() {}
 
-  setLastEventId(index: OutboxMessage['id']) {
-    this.lastEventId = index
+  setLastEventId(id: OutboxMessage['id']) {
+    this.lastEventId = id
   }
 
   getLastEventId() {
