@@ -16,7 +16,7 @@ export class FSM {
   private fsm = interpret(
     createMachine('wait', {
       wait: state(
-        transition('poll', 'processing'),
+        transition('poll' as Transition, 'processing'),
         transition('notify', 'processing'),
         transition('manual', 'processing')
       ),
