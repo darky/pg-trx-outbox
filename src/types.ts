@@ -28,7 +28,7 @@ export interface StartStop {
 export interface Send {
   send(
     messages: readonly OutboxMessage[]
-  ): Promise<((PromiseFulfilledResult<unknown> | PromiseRejectedResult) & { meta?: object })[]>
+  ): Promise<((PromiseFulfilledResult<unknown> | PromiseRejectedResult) & { error?: unknown; meta?: object })[]>
 }
 
 export interface OnHandled {
