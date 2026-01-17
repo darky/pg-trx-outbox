@@ -32,22 +32,22 @@
   "license": "MIT",
   "dependencies": {
     "debug": "^4.4.3",
-    "p-queue": "^9.0.0",
-    "pg": "^8.16.3",
-    "pg-cursor": "^2.15.3",
+    "p-queue": "^9.1.0",
+    "pg": "^8.17.1",
+    "pg-cursor": "^2.16.1",
     "robot3": "^1.2.0",
     "throw": "^1.1.1",
     "ts-pattern": "^5.9.0"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.8.1",
+    "@testcontainers/postgresql": "^11.11.0",
     "@types/debug": "^4.1.12",
-    "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
+    "@types/node": "^25.0.9",
+    "@types/pg": "^8.16.0",
     "@types/pg-cursor": "^2.7.2",
-    "testcontainers": "^11.8.1",
+    "testcontainers": "^11.11.0",
     "ts-fp-di": "^0.22.0",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "optionalDependencies": {
