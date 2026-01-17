@@ -138,7 +138,7 @@ test('explicit sending error', async () => {
   } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
-  assert.strictEqual(processedRow.response, { withError: true })
+  assert.deepStrictEqual(processedRow.response, { withError: true })
   assert.strictEqual(processedRow.error_approved, false)
   assert.strictEqual(processedRow.error, 'error')
 })
