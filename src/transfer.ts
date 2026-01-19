@@ -84,7 +84,10 @@ export class Transfer implements StartStop {
           sinceAt.push(
             needRetry ? new Date(Date.now() + (this.options.outboxOptions?.retryDelay ?? 5) * 1000) : message.since_at
           )
-          errorApproved.push(resp.status === 'rejected' && resp.reason.isApproved ? true : false)
+          errorApproved.push(
+            (resp.error as { isApproved: boolean })?.isApproved ||
+              (resp.status === 'rejected' && resp.reason.isApproved)
+          )
         }
         await this.updateToProcessed(client, ids, responses, errors, metas, processed, attempts, sinceAt, errorApproved)
         if (mode === 'event') {
