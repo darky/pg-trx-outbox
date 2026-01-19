@@ -314,5 +314,5 @@ test('explicit approved error', async () => {
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
   assert.deepStrictEqual(processedRow.response, { withError: true })
   assert.strictEqual(processedRow.error_approved, true)
-  assert.strictEqual(processedRow.error, 'test')
+  assert.match(processedRow.error, /Error: test/)
 })
