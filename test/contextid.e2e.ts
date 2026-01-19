@@ -13,7 +13,7 @@ let pg: Client
 let pgTrxOutbox: PgTrxOutbox
 
 beforeEach(async () => {
-  pgDocker = await new PostgreSqlContainer('postgres:17')
+  pgDocker = await new PostgreSqlContainer('postgres:18')
     .withReuse()
     .withCommand(['-c', 'fsync=off', '-c', 'wal_level=logical'])
     .start()
