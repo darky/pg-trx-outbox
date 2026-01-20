@@ -122,7 +122,11 @@ export class Transfer implements StartStop {
 
   private normalizeError(error: unknown) {
     return match(error)
-      .with({ stack: P.string }, ({ stack }) => stack)
+      .with(
+        P.instanceOf(Error),
+        ({ cause, message, stack }) =>
+          (stack ?? message) + (cause instanceof Error ? `\nCause: ${cause.stack ?? cause.message}` : '')
+      )
       .with(P.string, err => err)
       .otherwise(err => inspect(err))
   }
