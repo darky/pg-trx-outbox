@@ -141,7 +141,7 @@ test('throwing error with cause', async () => {
   assert.strictEqual(processedRow.response, null)
   assert.strictEqual(processedRow.error_approved, false)
   assert.match(processedRow.error, /Error: test/)
-  assert.match(processedRow.error, /Cause: cause/)
+  assert.match(processedRow.error, /Cause: Error: cause/)
 })
 
 test('explicit sending error', async () => {
