@@ -33,8 +33,8 @@
   "dependencies": {
     "debug": "^4.4.3",
     "p-queue": "^9.1.0",
-    "pg": "^8.17.1",
-    "pg-cursor": "^2.16.1",
+    "pg": "^8.17.2",
+    "pg-cursor": "^2.16.2",
     "robot3": "^1.2.0",
     "throw": "^1.1.1",
     "ts-pattern": "^5.9.0"
