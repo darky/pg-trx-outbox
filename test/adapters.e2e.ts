@@ -310,7 +310,7 @@ test('GroupedAsyncAdapter with explicit errors', async () => {
   assert.deepEqual(resp[0]?.response, { success: true })
   assert.strictEqual(resp[0]?.error, null)
 
-  assert.strictEqual(resp[1]?.response, { error: true })
+  assert.deepStrictEqual(resp[1]?.response, { error: true })
   assert.match(resp[1]?.error ?? '', /error/)
 
   assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
