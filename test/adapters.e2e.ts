@@ -265,6 +265,58 @@ test('GroupedAsyncAdapter works', async () => {
   assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
 })
 
+test('GroupedAsyncAdapter with explicit errors', async () => {
+  const handledMessages: OutboxMessage[] = []
+
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: new (class extends GroupedAsyncAdapter {
+      async start() {}
+      async stop() {}
+      override async onHandled(messages: readonly OutboxMessage[]): Promise<void> {
+        messages.forEach(m => handledMessages.push(m))
+      }
+      async handleMessage(message: OutboxMessage) {
+        if ((message.value as { ok: true }).ok) {
+          return { value: { success: true } }
+        }
+        return { error: new Error('error'), value: { error: true } }
+      }
+    })(),
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      concurrency: true,
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+  await pg.query(
+    `
+      INSERT INTO pg_trx_outbox (topic, "key", value)
+      VALUES
+        ('pg.trx.outbox', 'testKey', '{"ok": true}'),
+        ('pg.trx.outbox', 'testKey', '{"err": true}')
+    `
+  )
+  await setTimeout(1000)
+
+  const resp = await pg.query<OutboxMessage>('select * from pg_trx_outbox order by id').then(r => r.rows)
+
+  assert.deepEqual(resp[0]?.response, { success: true })
+  assert.strictEqual(resp[0]?.error, null)
+
+  assert.strictEqual(resp[1]?.response, { error: true })
+  assert.match(resp[1]?.error ?? '', /error/)
+
+  assert.deepStrictEqual(resp[0].value, handledMessages![0]?.value)
+  assert.deepStrictEqual(resp[1].value, handledMessages![1]?.value)
+})
+
 test('GroupedAsyncAdapter events in priority rather than commands', async () => {
   const handledMessages: OutboxMessage[] = []
 

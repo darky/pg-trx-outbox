@@ -13,8 +13,8 @@ export abstract class BaseAdapter {
       const beforeMemory = process.memoryUsage()
       const oldCpuUsage = process.cpuUsage()
       try {
-        const { value, meta } = await this.handleMessage(message)
-        respItem = { value, status: 'fulfilled', ...(meta ? { meta } : {}) }
+        const { value, meta, error } = await this.handleMessage(message)
+        respItem = { value, status: 'fulfilled', ...(meta ? { meta } : {}), ...(error ? { error } : {}) }
       } catch (reason) {
         respItem = { reason, status: 'rejected' }
       }
@@ -35,5 +35,5 @@ export abstract class BaseAdapter {
     })
   }
 
-  abstract handleMessage(message: OutboxMessage): Promise<{ value: unknown; meta?: object }>
+  abstract handleMessage(message: OutboxMessage): Promise<{ value: unknown; meta?: object; error?: unknown }>
 }
