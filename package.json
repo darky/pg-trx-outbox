@@ -42,7 +42,7 @@
   "devDependencies": {
     "@testcontainers/postgresql": "^11.11.0",
     "@types/debug": "^4.1.12",
-    "@types/node": "^25.0.9",
+    "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
     "@types/pg-cursor": "^2.7.2",
     "testcontainers": "^11.11.0",
