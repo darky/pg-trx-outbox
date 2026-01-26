@@ -125,7 +125,12 @@ export class Transfer implements StartStop {
       .with(
         P.instanceOf(Error),
         ({ cause, message, stack }) =>
-          (stack ?? message) + (cause instanceof Error ? `\nCause: ${cause.stack ?? cause.message}` : '')
+          (stack ?? message) +
+          (cause instanceof Error
+            ? `\nCause: ${cause.stack ?? cause.message}`
+            : cause != null
+              ? `\nCause: ${inspect(cause)}`
+              : '')
       )
       .with(P.string, err => err)
       .otherwise(err => inspect(err))

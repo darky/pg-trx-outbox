@@ -144,6 +144,51 @@ test('throwing error with cause', async () => {
   assert.match(processedRow.error, /Cause: Error: cause/)
 })
 
+test('throwing error with cause object', async () => {
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async onHandled() {},
+      async send() {
+        throw new Error('test', { cause: { resp: 500 } })
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  const processedRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string
+    error_approved: boolean
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(processedRow.processed, true)
+  assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
+  assert.strictEqual(processedRow.response, null)
+  assert.strictEqual(processedRow.error_approved, false)
+  assert.match(processedRow.error, /Error: test/)
+  assert.match(processedRow.error, /"resp": 500/)
+})
+
 test('explicit sending error', async () => {
   pgTrxOutbox = new PgTrxOutbox({
     adapter: {
