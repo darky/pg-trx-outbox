@@ -14,9 +14,10 @@ export class PgTrxOutbox implements StartStop {
   private poller?: Poller
   private notifier?: Notifier
   private es: Es
+  private opts: Options
 
   constructor(options: Options) {
-    const opts: Options = {
+    this.opts = {
       ...options,
       outboxOptions: {
         onError(err: Error) {
@@ -25,15 +26,15 @@ export class PgTrxOutbox implements StartStop {
         ...options.outboxOptions,
       },
     }
-    this.adapter = opts.adapter
-    this.pg = new Pg(opts)
-    this.es = new Es(this.pg, this.adapter, opts)
-    this.transfer = new Transfer(opts, this.pg, this.adapter, this.es)
-    match(opts.outboxOptions?.mode)
-      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(opts, this.transfer)))
+    this.adapter = this.opts.adapter
+    this.pg = new Pg(this.opts)
+    this.es = new Es(this.pg, this.adapter, this.opts)
+    this.transfer = new Transfer(this.opts, this.pg, this.adapter, this.es)
+    match(this.opts.outboxOptions?.mode)
+      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(this.opts, this.transfer)))
       .with('notify', () => {
-        this.poller = new Poller(opts, this.transfer)
-        this.notifier = new Notifier(opts, this.transfer)
+        this.poller = new Poller(this.opts, this.transfer)
+        this.notifier = new Notifier(this.opts, this.transfer)
       })
       .exhaustive()
   }
@@ -69,6 +70,6 @@ export class PgTrxOutbox implements StartStop {
   }
 
   fetchEvents() {
-    this.transfer.transferMessages()
+    this.transfer.transferMessages().catch(err => this.opts.outboxOptions?.onError?.(err))
   }
 }

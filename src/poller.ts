@@ -13,7 +13,7 @@ export class Poller implements StartStop {
 
   async start() {
     this.pollTimer = setInterval(
-      () => this.transfer.transferMessages(),
+      () => this.transfer.transferMessages().catch(err => this.options.outboxOptions?.onError?.(err)),
       this.options.outboxOptions?.pollInterval ?? 5000
     )
   }

@@ -5,9 +5,11 @@ import { Transfer } from './transfer.ts'
 
 export class Notifier implements StartStop {
   private notifier!: Subscriber
+  private options: Options
   private transfer: Transfer
 
   constructor(options: Options, transfer: Transfer) {
+    this.options = options
     this.transfer = transfer
     import('pg-listen').then(({ default: createSubscriber }) => {
       this.notifier = createSubscriber({
@@ -21,7 +23,9 @@ export class Notifier implements StartStop {
   async start() {
     await this.notifier.connect()
     await this.notifier.listenTo('pg_trx_outbox')
-    this.notifier.notifications.on('pg_trx_outbox', () => this.transfer.transferMessages())
+    this.notifier.notifications.on('pg_trx_outbox', () =>
+      this.transfer.transferMessages().catch(err => this.options.outboxOptions?.onError?.(err))
+    )
   }
 
   async stop() {
