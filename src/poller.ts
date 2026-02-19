@@ -1,18 +1,21 @@
 import type { Options, StartStop } from './types.ts'
-import type { FSM } from './fsm.ts'
+import { Transfer } from './transfer.ts'
 
 export class Poller implements StartStop {
   private pollTimer?: NodeJS.Timeout
   private options: Options
-  private fsm: FSM
+  private transfer: Transfer
 
-  constructor(options: Options, fsm: FSM) {
+  constructor(options: Options, transfer: Transfer) {
     this.options = options
-    this.fsm = fsm
+    this.transfer = transfer
   }
 
   async start() {
-    this.pollTimer = setInterval(() => this.fsm.send('poll'), this.options.outboxOptions?.pollInterval ?? 5000)
+    this.pollTimer = setInterval(
+      () => this.transfer.transferMessages(),
+      this.options.outboxOptions?.pollInterval ?? 5000
+    )
   }
 
   async stop() {

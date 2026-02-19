@@ -2,7 +2,6 @@ import type { Adapter, Options, OutboxMessage, StartStop } from './types.ts'
 import { Notifier } from './notifier.ts'
 import { Poller } from './poller.ts'
 import { Transfer } from './transfer.ts'
-import { FSM } from './fsm.ts'
 import { P, match } from 'ts-pattern'
 import { Pg } from './pg.ts'
 import { diDep, diExists, diHas } from 'ts-fp-di'
@@ -15,7 +14,6 @@ export class PgTrxOutbox implements StartStop {
   private poller?: Poller
   private notifier?: Notifier
   private es: Es
-  private fsm: FSM
 
   constructor(options: Options) {
     const opts: Options = {
@@ -31,12 +29,11 @@ export class PgTrxOutbox implements StartStop {
     this.pg = new Pg(opts)
     this.es = new Es(this.pg, this.adapter, opts)
     this.transfer = new Transfer(opts, this.pg, this.adapter, this.es)
-    this.fsm = new FSM(opts, this.transfer)
     match(opts.outboxOptions?.mode)
-      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(opts, this.fsm)))
+      .with(P.union('short-polling', void 0), () => (this.poller = new Poller(opts, this.transfer)))
       .with('notify', () => {
-        this.poller = new Poller(opts, this.fsm)
-        this.notifier = new Notifier(opts, this.fsm)
+        this.poller = new Poller(opts, this.transfer)
+        this.notifier = new Notifier(opts, this.transfer)
       })
       .exhaustive()
   }
@@ -72,6 +69,6 @@ export class PgTrxOutbox implements StartStop {
   }
 
   fetchEvents() {
-    this.fsm.send('manual')
+    this.transfer.transferMessages()
   }
 }
