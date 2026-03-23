@@ -73,7 +73,7 @@ export class Transfer implements StartStop {
           )
           errors.push(
             (resp.error ? this.normalizeError(resp.error) : null) ??
-              (resp.status === 'rejected' ? this.normalizeError(resp.reason) : message.error)
+              (resp.status === 'rejected' ? this.normalizeError(resp.reason) : null)
           )
           const needRetry =
             resp.status === 'rejected' &&

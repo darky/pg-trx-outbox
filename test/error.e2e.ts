@@ -406,3 +406,75 @@ test('explicit approved error', async () => {
   assert.strictEqual(processedRow.error_approved, true)
   assert.match(processedRow.error, /Error: test/)
 })
+
+test('error cleared on reprocess', async () => {
+  let shouldFail = true
+  pgTrxOutbox = new PgTrxOutbox({
+    adapter: {
+      async start() {},
+      async stop() {},
+      async onHandled() {},
+      async send() {
+        if (shouldFail) {
+          throw new Error('initial error')
+        }
+        return [{ status: 'fulfilled', value: { success: true } }]
+      },
+    },
+    pgOptions: {
+      host: pgDocker.getHost(),
+      port: pgDocker.getPort(),
+      user: pgDocker.getUsername(),
+      password: pgDocker.getPassword(),
+      database: pgDocker.getDatabase(),
+    },
+    outboxOptions: {
+      pollInterval: 300,
+    },
+  })
+  await pgTrxOutbox.start()
+  await pg.query(`
+    INSERT INTO pg_trx_outbox
+      (topic, "key", value)
+      VALUES ('pg.trx.outbox', 'testKey', '{"test": true}');
+    `)
+  await setTimeout(1000)
+
+  // First check: error should be present
+  const firstRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string
+    error_approved: boolean
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(firstRow.processed, true)
+  assert.strictEqual(firstRow.response, null)
+  assert.match(firstRow.error, /Error: initial error/)
+  assert.strictEqual(firstRow.error_approved, false)
+
+  // Reset to allow successful processing
+  shouldFail = false
+  // Reset the message for reprocessing
+  await pg.query(`
+    UPDATE pg_trx_outbox
+    SET processed = false, error = NULL, response = NULL, attempts = 0
+    WHERE id = $1
+  `, [firstRow.id])
+  await setTimeout(500)
+
+  // Second check: error should be cleared after successful reprocess
+  const secondRow: {
+    processed: boolean
+    created_at: Date
+    updated_at: Date
+    response: unknown
+    error: string | null
+    error_approved: boolean
+  } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
+  assert.strictEqual(secondRow.processed, true)
+  assert.deepStrictEqual(secondRow.response, { success: true })
+  assert.strictEqual(secondRow.error, null)
+  assert.strictEqual(secondRow.error_approved, false)
+})
