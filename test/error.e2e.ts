@@ -442,6 +442,7 @@ test('error cleared on reprocess', async () => {
 
   // First check: error should be present
   const firstRow: {
+    id: string
     processed: boolean
     created_at: Date
     updated_at: Date

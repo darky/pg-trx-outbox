@@ -147,7 +147,7 @@ test('on not retry error is processed', async () => {
   assert.match(processedRow.error, /Error: test err/)
 })
 
-test('preserve error after retry', async () => {
+test('clear error on successful retry', async () => {
   const resps = [
     { reason: new Error('test err'), status: 'rejected' } as PromiseRejectedResult,
     { status: 'fulfilled' as const, value: { ok: true } } as PromiseFulfilledResult<{ ok: true }>,
@@ -189,14 +189,14 @@ test('preserve error after retry', async () => {
     created_at: Date
     updated_at: Date
     response: { ok: true }
-    error: string
+    error: string | null
     attempts: number
   } = await pg.query(`select * from pg_trx_outbox`).then(resp => resp.rows[0])
   assert.strictEqual(processedRow.processed, true)
   assert.strictEqual(processedRow.updated_at > processedRow.created_at, true)
   assert.strictEqual(processedRow.response.ok, true)
   assert.strictEqual(processedRow.attempts, 1)
-  assert.match(processedRow.error, /Error: test err/)
+  assert.strictEqual(processedRow.error, null)
 })
 
 test('retry max attempts exceeded', async () => {
