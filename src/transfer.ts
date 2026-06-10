@@ -101,17 +101,22 @@ export class Transfer implements StartStop {
         if (messages.length) {
           await client.query('rollback')
           await client.query('begin')
-          await this.updateToProcessed(
-            client,
-            messages.map(r => r.id),
-            messages.map(() => null),
-            messages.map(() => this.normalizeError(e)),
-            messages.map(() => null),
-            messages.map(() => true),
-            messages.map(m => m.attempts),
-            messages.map(m => m.since_at),
-            messages.map(() => false)
-          )
+          try {
+            await this.updateToProcessed(
+              client,
+              messages.map(r => r.id),
+              messages.map(() => null),
+              messages.map(() => this.normalizeError(e)),
+              messages.map(() => null),
+              messages.map(() => true),
+              messages.map(m => m.attempts),
+              messages.map(m => m.since_at),
+              messages.map(() => false)
+            )
+          } catch (updateError) {
+            ;(updateError as Error).cause = e
+            throw updateError
+          }
         }
         throw e
       }
