@@ -99,6 +99,8 @@ export class Transfer implements StartStop {
     } catch (e) {
       if ((e as { code: string }).code !== '55P03') {
         if (messages.length) {
+          await client.query('rollback')
+          await client.query('begin')
           await this.updateToProcessed(
             client,
             messages.map(r => r.id),
@@ -114,7 +116,11 @@ export class Transfer implements StartStop {
         throw e
       }
     } finally {
-      await client.query('commit')
+      try {
+        await client.query('commit')
+      } catch {
+        await client.query('rollback')
+      }
       client.release()
     }
     await this.adapter.onHandled(messages)
